@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {verifySource,verifyVersion} from './deploy.mjs';
+const commit='a'.repeat(40),id='f2d7498c-604d-4a6d-88b5-a28bf883f515';
+verifySource('main','',commit,commit);
+for(const args of [['branch','',commit,commit],['main',' M file',commit,commit],['main','',commit,'b'.repeat(40)]])assert.throws(()=>verifySource(...args));
+const version={id,metadata:{has_preview:true},annotations:{'workers/alias':'review','workers/tag':'commit-aaaaaaaaaaaa','workers/message':'review commit-aaaaaaaaaaaa','workers/triggered_by':'version_upload'}};
+verifyVersion(version,id,commit);
+for(const field of Object.keys(version.annotations))assert.throws(()=>verifyVersion({...version,annotations:{...version.annotations,[field]:'wrong'}},id,commit));
+assert.throws(()=>verifyVersion({...version,id:'other'},id,commit));
+assert.throws(()=>verifyVersion({...version,metadata:{has_preview:false}},id,commit));
+console.log('Release guards passed: clean pushed main and exact reviewed version required.');

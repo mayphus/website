@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{title}}</title>
+<meta name="description" content="{{description}}">
+<link rel="canonical" href="https://mayphus.org/">
+<link rel="stylesheet" href="/landing.css">
+<link rel="alternate" type="text/plain" href="/index.txt" title="Public records as text">
+<link rel="alternate" type="application/json" href="/agent-index.json" title="Public content index">
+</head>
+<body><main><h1>{{title}}</h1>
+<p>{{introduction}}</p>
+<p>{{background}}</p>
+<nav aria-label="Contact"><a href="mailto:{{email}}">Email</a>
+<a href="{{github}}">GitHub</a>
+</nav>
+<section><h2>{{heading}}</h2>
+<p>Give your AI assistant <a href="https://mayphus.org/">mayphus.org</a>
+{{assistant_instruction}}</p>
+<p>{{records_description}}</p>
+<nav aria-label="Source records"><a href="/llms.txt">Start here</a>
+<a href="/agent-index.json">Content index</a>
+<a href="/api/profile">Profile</a>
+<a href="/mcp">MCP tools</a>
+</nav>
+</section>
+<footer>{{footer}}</footer>
+</main>
+<script src="/fragments.js" defer="defer"></script>
+</body>
+</html>

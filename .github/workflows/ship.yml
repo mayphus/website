@@ -1,0 +1,43 @@
+name: Ship
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+# The review alias and production belong to one serialized release chain.
+concurrency:
+  group: mayphus-release
+  cancel-in-progress: false
+jobs:
+  ship:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment:
+      name: production
+      url: https://mayphus.org
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Attach the event commit to main
+        run: git switch -C main "$GITHUB_SHA"
+      - uses: ./.github/actions/setup
+      - name: Review and promote the same version
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$GITHUB_SHA"
+          npm run release:review | tee "$RUNNER_TEMP/mayphus-review.log"
+          version=$(sed -nE 's/^Review version: ([0-9a-f-]{36})$/\1/p' "$RUNNER_TEMP/mayphus-review.log")
+          test -n "$version"
+          npm run release:ship -- "$version"
+          {
+            echo "### Shipped Mayphus"
+            echo "Commit: $GITHUB_SHA"
+            echo "Cloudflare version: $version"
+            echo "Review and production health and homepage bytes verified."
+            echo "https://mayphus.org/?__asset_version=$version"
+          } >> "$GITHUB_STEP_SUMMARY"

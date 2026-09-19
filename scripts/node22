@@ -1,0 +1,46 @@
+#!/bin/sh
+set -eu
+
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+repo_root=$(CDPATH= cd -- "$script_dir/.." && pwd)
+node_version=$(tr -d '[:space:]' < "$repo_root/.node-version")
+
+if [ -n "${XDG_CACHE_HOME:-}" ]; then
+  cache_base=$XDG_CACHE_HOME
+else
+  : "${HOME:?HOME is required when XDG_CACHE_HOME is unset}"
+  cache_base=$HOME/.cache
+fi
+
+cache_root=$cache_base/mayphus-node-$node_version
+node_dir=$cache_root/node_modules/node/bin
+node_bin=$node_dir/node
+
+node_major=
+if [ -x "$node_bin" ]; then
+  node_major=$($node_bin -p 'process.versions.node.split(".")[0]')
+fi
+
+if [ "$node_major" != "$node_version" ]; then
+  bootstrap_npm=$(command -v npm || true)
+  if [ -z "$bootstrap_npm" ]; then
+    echo "setup: npm is required to provision Node $node_version" >&2
+    exit 1
+  fi
+  mkdir -p "$cache_root"
+  "$bootstrap_npm" install --prefix "$cache_root" --no-package-lock --no-save "node@$node_version"
+fi
+
+if [ "$#" -eq 0 ]; then
+  exec "$node_bin"
+fi
+
+PATH=$node_dir:$PATH
+export PATH
+
+# Codex worktrees may inherit a read-only /var/tmp. Keep repository checks and
+# deploy tooling on the writable, system-standard temporary directory.
+TMPDIR=/tmp
+export TMPDIR
+
+exec "$@"

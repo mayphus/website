@@ -1,0 +1,44 @@
+body {
+  max-width: 38rem;
+  margin: 12vh auto;
+  padding: 0 1.5rem;
+  font: 18px/1.7 system-ui,sans-serif;
+  background: #faf9f6;
+  color: #262522;
+}
+
+body h1 {
+  font-size: 2.4rem;
+  letter-spacing: -.04em;
+  margin-bottom: .3rem;
+}
+
+body a {
+  color: inherit;
+  text-underline-offset: .2em;
+}
+
+body nav {
+  display: flex;
+  gap: 1.2rem;
+  flex-wrap: wrap;
+  font-size: 1rem;
+}
+
+body section {
+  margin: 3rem 0;
+}
+
+body h2 {
+  font-size: 1rem;
+}
+
+body p {
+  margin: 1rem 0;
+}
+
+body footer {
+  margin: 4rem 0 2rem;
+  font-size: .85rem;
+  color: #68645c;
+}

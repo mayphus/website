@@ -1,0 +1,51 @@
+{
+  "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+  "name": "mayphus",
+  "main": ".cache/worker.mjs",
+  "compatibility_date": "2026-07-22",
+  "preview_urls": true,
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "404-page",
+    "run_worker_first": [
+      "/*"
+    ]
+  },
+  "ai": {
+    "binding": "AI"
+  },
+  "ratelimits": [
+    {
+      "name": "TYPING_BUILD_RATE_LIMITER",
+      "namespace_id": "10001",
+      "simple": {
+        "limit": 6,
+        "period": 60
+      }
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 0.1
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 0.01
+    }
+  },
+  "r2_buckets": [
+    {
+      "binding": "ARTIFACTS",
+      "bucket_name": "mayphus-artifacts"
+    }
+  ],
+  "routes": [
+    {
+      "pattern": "mayphus.org/*",
+      "zone_name": "mayphus.org"
+    }
+  ]
+}
