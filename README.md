@@ -12,12 +12,14 @@ scripts/node22 npm run check
 scripts/node22 npm run dev
 ```
 
-`content.lock.json` selects an exact public content commit. The build fetches it
+`content.lock.json` selects an exact content commit. The build fetches it
 into ignored `.cache/content`, installs its locked dependencies and runs its
 export. It renders `public/index.html` with the exported `homepage.json`, copies
 CSS/browser assets and bundles the content repository's Worker. Downloads and
 API URLs stay on the same origin. No second backend or runtime GitHub fetch is
-required. First builds need GitHub/npm access; prepared checkouts build offline.
+required. The content repository is private: local builds require authorized Git access;
+GitHub Actions uses a dedicated read-only deploy key (`CONTENT_READ_KEY`).
+First builds need GitHub/npm access; prepared checkouts build offline.
 
 | Change | Location |
 | --- | --- |

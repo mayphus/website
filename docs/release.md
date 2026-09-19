@@ -9,7 +9,8 @@ Cloudflare Worker name, domain route, R2, AI and rate-limit bindings.
    is removed; content pushes only validate. Let any earlier Ship run finish.
 2. Create mayphus/website, publish these sources and ensure content.lock.json pins
    that exact published content commit.
-3. Configure the website repository production environment with
+3. Configure a read-only deploy key on mayphus/mayphus and save its private key
+   as website repository secret CONTENT_READ_KEY. Configure the production environment with
    CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN using the existing authorized
    Cloudflare credentials. Keep secret values out of files and logs.
 4. Run the website Ship workflow. Verify its immutable review and production

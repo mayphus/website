@@ -12,4 +12,15 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup
+      - name: Read pinned content version
+        id: content
+        run: node -e 'require("fs").appendFileSync(process.env.GITHUB_OUTPUT, "commit=" + require("./content.lock.json").commit + "\n")'
+      - name: Check out private content with read-only access
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: mayphus/mayphus
+          ref: ${{ steps.content.outputs.commit }}
+          path: .cache/content
+          ssh-key: ${{ secrets.CONTENT_READ_KEY }}
+          persist-credentials: false
       - run: npm run check

@@ -14,7 +14,7 @@ export async function contentSource() {
   await mkdir('.cache', {recursive:true});
   try { await access(resolve(source,'.git')); }
   catch { git(process.cwd(), 'clone', '--no-checkout', '--filter=blob:none', repository, source); }
-  assert.equal(git(source,'remote','get-url','origin'), repository);
+  assert.ok([repository,'git@github.com:mayphus/mayphus.git'].includes(git(source,'remote','get-url','origin')), 'Unexpected content repository');
   assert.equal(git(source,'status','--porcelain'), '', 'Cached content checkout is dirty');
   try { git(source,'cat-file','-e',`${lock.commit}^{commit}`); }
   catch { git(source,'fetch','--depth=1','origin',lock.commit); }
