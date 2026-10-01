@@ -32,14 +32,17 @@ First builds need GitHub/npm access; prepared checkouts build offline.
 
 ## Update content
 
-Commit and push the content change first. Then:
+After the content PR merges and its Check passes, copy that exact commit SHA and run:
 
 ```sh
-scripts/node22 npm run content:pin -- ../mayphus
-scripts/node22 npm run check
+scripts/node22 npm run content:update -- FULL_CONTENT_COMMIT_SHA
 ```
 
-Commit the lock change. Pinning does not publish. A local, clean checkout at the
+This fetches the exact content commit and checks both repositories. If validation
+fails, it restores the previous lock. Open a website PR containing the lock change;
+its Check validates the composed site. An authorized merge to main runs Ship
+automatically. No separate Ship dispatch is needed. Updating the pin does not publish.
+The existing `content:pin -- ../mayphus` command remains available for local checkouts. A local, clean checkout at the
 pinned commit can be used for development:
 
 ```sh

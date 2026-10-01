@@ -21,34 +21,24 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Attach the event commit to main
         run: git switch -C main "$GITHUB_SHA"
-      - uses: ./.github/actions/setup
-      - name: Read pinned content version
-        id: content
-        run: node -e 'require("fs").appendFileSync(process.env.GITHUB_OUTPUT, "commit=" + require("./content.lock.json").commit + "\n")'
-      - name: Check out private content with read-only access
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          repository: mayphus/mayphus
-          ref: ${{ steps.content.outputs.commit }}
-          path: .cache/content
-          ssh-key: ${{ secrets.CONTENT_READ_KEY }}
-          persist-credentials: false
-      - name: Review and promote the same version
-        env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      - name: Skip superseded commits before installing or uploading
+        id: current
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$GITHUB_SHA"
-          npm run release:review | tee "$RUNNER_TEMP/mayphus-review.log"
-          version=$(sed -nE 's/^Review version: ([0-9a-f-]{36})$/\1/p' "$RUNNER_TEMP/mayphus-review.log")
-          test -n "$version"
-          npm run release:ship -- "$version"
-          {
-            echo "### Shipped Mayphus"
-            echo "Commit: $GITHUB_SHA"
-            echo "Cloudflare version: $version"
-            echo "Review and production health and homepage bytes verified."
-            echo "https://mayphus.org/?__asset_version=$version"
-          } >> "$GITHUB_STEP_SUMMARY"
+          remote=$(git ls-remote --exit-code origin refs/heads/main | cut -f1)
+          if [ "$remote" = "$GITHUB_SHA" ]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Skipped superseded commit $GITHUB_SHA; main is $remote." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: ./.github/actions/setup
+        if: steps.current.outputs.current == 'true'
+        with:
+          content-read-key: ${{ secrets.CONTENT_READ_KEY }}
+      - name: Review and promote the same version
+        if: steps.current.outputs.current == 'true'
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npm run release
