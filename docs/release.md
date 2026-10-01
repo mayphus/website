@@ -58,7 +58,23 @@ The setup action checks out main once and records its full commit in ignored
 review receipt binds website commit, resolved content commit, Worker and asset bytes;
 promotion does not rebuild or fetch newer content. Content moving during review is
 handled in a later release. A build/review failure never changes production.
-Scheduled runs currently revalidate and release unchanged source too.
+Unchanged sources skip build and deployment only when a trusted cached success
+receipt matches both source commits and the exact current Cloudflare production
+deployment at 100% traffic. Missing or unavailable provenance falls back to the
+full checked release.
+
+Production provenance is saved only after strict production verification succeeds,
+using the existing Actions cache service on trusted website main. Its exact cache
+key includes the Cloudflare deployment ID, not only a source commit or workflow run.
+The next poll reads current deployment status with the existing Cloudflare token,
+restores that exact receipt, then reads current status again before deciding to skip.
+Both full source commits, deployment ID, single version at 100% traffic and version
+metadata must match. A later promotion followed by failed/interrupted verification
+has a different deployment ID and no verified receipt, so it cannot reuse an older
+success. Evicted receipts, malformed data or unavailable reads require a normal full
+checked release. No fuzzy restore keys or new repository/API permissions are used.
+Manual workflow dispatch always forces a checked retry. Production receipts contain
+only public build identities and hashes; no credential values are cached.
 
 Website PR checks cancel older checks for the same PR; Ship remains serialized and
 is never cancelled in progress. No content repository write access or new credential

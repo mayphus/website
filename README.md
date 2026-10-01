@@ -35,11 +35,14 @@ Merge reviewed content to its main branch. Website Ship polls that trusted branc
 hourly at minute 17 using existing read-only access, so content-only changes publish
 without a website PR. GitHub scheduling can be delayed; this is polling, not an
 immediate cross-repository event. Website main pushes and intentional manual retries
-also run Ship. Each run checks both repositories, verifies an immutable preview,
-and promotes exactly that reviewed version. A failed build or review preserves the
-currently deployed version. Scheduled runs currently revalidate and release even
-when source is unchanged; no write token, new credential or cross-repo permission
-is needed. PR Check validates without deploying PR code.
+also run Ship. Changed source runs both repository checks, verifies an immutable
+preview, and promotes exactly that reviewed version. A failed build or review
+preserves the currently deployed version. Unchanged source skips building and
+deployment only with a verified receipt for
+the exact current production deployment and matching website/content commits. A
+missing receipt or unavailable comparison runs the normal checked release. No new
+credential or cross-repository permission is needed. PR Check validates without
+deploying PR code.
 
 Build metadata and release receipts retain both resolved commits for provenance.
 An upstream content commit arriving during review is handled by a later run; it

@@ -4,6 +4,7 @@ import {readFile} from 'node:fs/promises';
 import YAML from 'yaml';
 import {release} from './release.mjs';
 import {selectContent} from './content-source.mjs';
+import {canReuseProduction, successfulProduction} from './production-provenance.mjs';
 
 const version = 'f2d7498c-604d-4a6d-88b5-a28bf883f515';
 test('release promotes the receipt version once and only summarizes success', async () => {
@@ -63,4 +64,55 @@ test('automatic content publication polls trusted main without wider permissions
  assert.equal(checkout.with['persist-credentials'], false);
  assert.ok(check.on.pull_request !== undefined);
  assert.ok(!JSON.stringify(check).includes('CLOUDFLARE_API_TOKEN'));
+});
+
+// A historical successful run alone is insufficient: the receipt must identify
+// the deployment currently serving 100% of production traffic.
+const productionVersion = 'f2d7498c-604d-4a6d-88b5-a28bf883f515';
+const deploymentId = 'ac8ab124-f200-4ff1-88a2-133610d32c49';
+const otherDeployment = 'c231176a-128f-471c-a401-baa23ebd91af';
+const otherVersion = '67a016f4-814a-456e-94b0-37a2a076af00';
+const successful = {status:'verified',website:first,content:newest,assets:'c'.repeat(64),deployment:deploymentId,version:productionVersion};
+const deployed = {id:deploymentId,versions:[{version_id:productionVersion,percentage:100}]};
+const versionMetadata = {id:productionVersion,metadata:{has_preview:true},annotations:{'workers/alias':'review','workers/tag':'commit-aaaaaaaaaaaa','workers/message':'review commit-aaaaaaaaaaaa','workers/triggered_by':'version_upload'}};
+const reuseOptions = {website:first,content:newest,readWebsiteMain:async () => first,readSuccess:async () => successful,readProduction:async () => deployed,readVersion:async () => versionMetadata};
+test('unchanged sources skip only with a verified receipt matching current production', async () => {
+ assert.equal(await canReuseProduction(reuseOptions),true);
+});
+for (const [name, overrides] of [
+ ['new content',{content:'d'.repeat(40)}],
+ ['new website',{website:'d'.repeat(40)}],
+ ['failed previous release',{readSuccess:async () => ({...successful,status:'failed'})}],
+ ['missing receipt',{readSuccess:async () => {throw Error('cache miss');}}],
+ ['unavailable production provenance',{readProduction:async () => {throw Error('read failed');}}],
+ ['unavailable version provenance',{readVersion:async () => {throw Error('read failed');}}],
+ ['manual retry',{force:true}],
+ ['website main moving during setup',{readWebsiteMain:async () => 'd'.repeat(40)}],
+ ['unavailable website main',{readWebsiteMain:async () => {throw Error('read failed');}}],
+ ['interrupted or failed post-promotion verification',{readProduction:async () => ({id:otherDeployment,versions:[{version_id:otherVersion,percentage:100}]})}],
+ ['a later deployment of the same version',{readProduction:async () => ({...deployed,id:otherDeployment})}],
+ ['split production traffic',{readProduction:async () => ({...deployed,versions:[{version_id:productionVersion,percentage:50},{version_id:otherVersion,percentage:50}]})}],
+]) test(`${name} cannot bypass the checked release`, async () => {
+ assert.equal(await canReuseProduction({...reuseOptions,...overrides}),false);
+});
+test('success recording rejects a deployment that moved after production verification', () => {
+ const receipt = {commit:first,content:newest,assets:'c'.repeat(64),version:productionVersion};
+ assert.deepEqual(successfulProduction(receipt,deployed),successful);
+ assert.throws(() => successfulProduction(receipt,{...deployed,versions:[{version_id:otherVersion,percentage:100}]}));
+});
+test('only successful main Ship can save production provenance, without fuzzy cache restores', async () => {
+ const ship = YAML.parse(await readFile('.github/workflows/ship.yml','utf8'));
+ const steps = ship.jobs.ship.steps;
+ const releaseIndex = steps.findIndex(s => s.run === 'npm run release');
+ const recordIndex = steps.findIndex(s => s.run === 'node scripts/production-provenance.mjs record');
+ const saveIndex = steps.findIndex(s => s.uses?.startsWith('actions/cache/save@'));
+ assert.ok(releaseIndex < recordIndex && recordIndex < saveIndex);
+ for (const step of [steps[recordIndex],steps[saveIndex]]) {
+  assert.ok(step.if.includes('success()'));
+  assert.ok(!/always\(|failure\(/.test(step.if));
+ }
+ const restore = steps.find(s => s.uses?.startsWith('actions/cache/restore@'));
+ assert.ok(!restore.with['restore-keys']);
+ assert.equal(restore.with.path,'.cache/verified-production.json');
+ assert.equal(ship.jobs.ship.if,"github.ref == 'refs/heads/main'");
 });
