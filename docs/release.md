@@ -38,9 +38,11 @@ PR integration and the exact merged release commit.
 
 A push to main is the normal release trigger. Do not also dispatch Ship for the
 same change. Manual dispatch remains available for an intentional retry: it
-revalidates, uploads a fresh immutable version and promotes it. Duplicate triggers
-are serialized, not silently deduplicated. Superseded queued commits skip before
-setup/upload. If main moves during review, the existing promotion guards still
+revalidates, uploads a fresh immutable version and promotes it. Concurrency protects
+the running release from cancellation, but GitHub retains only one pending run;
+a newer run can replace that pending run. Not every queued trigger will execute.
+Any superseded commit that does start skips before setup/upload. If main moves
+during review, the existing promotion guards still
 fail closed. A failed review never promotes; a failed production verification
 fails the run and requires investigation (it does not imply automatic rollback).
 
