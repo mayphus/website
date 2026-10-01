@@ -31,3 +31,22 @@ jobs:
                   except Exception as error:
                       print(json.dumps({'url':url,'error':str(error)}), flush=True)
           PY
+      - name: Compare default Node fetch and cache-busted public routes
+        shell: bash
+        run: |
+          node --input-type=module - <<'JS'
+          import {createHash, randomUUID} from 'node:crypto';
+          for (const base of ['https://mayphus.org', 'https://118b9cad-mayphus.mayphus.workers.dev']) {
+            for (const path of ['/', '/profile/', '/typing/', '/typing/index.html']) {
+              for (const bust of [false, true]) {
+                const url = new URL(path, base);
+                if (bust) url.searchParams.set('__asset_version', randomUUID());
+                try {
+                  const r = await fetch(url, {cache:'no-store', signal:AbortSignal.timeout(30000)});
+                  const body = await r.text();
+                  console.log(JSON.stringify({url:String(url), finalUrl:r.url, status:r.status, headers:Object.fromEntries(['content-type','cache-control','cf-cache-status','age','cf-ray','server'].map(k=>[k,r.headers.get(k)])), bytes:Buffer.byteLength(body), sha256:createHash('sha256').update(body).digest('hex'), prefix:body.slice(0,180)}));
+                } catch (error) { console.log(JSON.stringify({url:String(url), error:String(error)})); }
+              }
+            }
+          }
+          JS
