@@ -3,6 +3,9 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # Poll trusted content main using the existing read-only key; no cross-repo token.
+  schedule:
+    - cron: "17 * * * *"
 permissions:
   contents: read
 # The review alias and production belong to one serialized release chain.

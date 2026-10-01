@@ -20,9 +20,7 @@
     "dev": "npm run build && wrangler dev --local --port 8789",
     "release:review": "node scripts/deploy.mjs review",
     "release:ship": "node scripts/deploy.mjs ship",
-    "content:pin": "node scripts/content-source.mjs pin",
     "release": "node scripts/release.mjs",
-    "content:update": "node scripts/update-content.mjs",
     "check:pipeline": "node --test scripts/check-pipeline.mjs"
   }
 }

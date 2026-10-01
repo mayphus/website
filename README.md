@@ -12,14 +12,14 @@ scripts/node22 npm run check
 scripts/node22 npm run dev
 ```
 
-`content.lock.json` selects an exact content commit. The build fetches it
-into ignored `.cache/content`, installs its locked dependencies and runs its
-export. It renders `public/index.html` with the exported `homepage.json`, copies
-CSS/browser assets and bundles the content repository's Worker. Downloads and
-API URLs stay on the same origin. No second backend or runtime GitHub fetch is
-required. The content repository is private: local builds require authorized Git access;
-GitHub Actions uses a dedicated read-only deploy key (`CONTENT_READ_KEY`).
-First builds need GitHub/npm access; prepared checkouts build offline.
+Each build resolves the newest `mayphus/mayphus` main into ignored
+`.cache/content`, installs its locked dependencies and runs its export. CI records
+the resolved commit in ignored `.cache/content-source.json` and reuses it throughout
+that build. Local builds fetch main afresh. There is no committed content pin or
+content-update PR. It renders `public/index.html` with exported `homepage.json`,
+copies browser assets and bundles the content repository's Worker. Downloads and
+API URLs stay on the same origin. The private content repository uses existing
+read-only `CONTENT_READ_KEY` in Actions; local builds require authorized Git access.
 
 | Change | Location |
 | --- | --- |
@@ -27,29 +27,23 @@ First builds need GitHub/npm access; prepared checkouts build offline.
 | Styling | `public/landing.css` |
 | Legacy anchor behavior | `public/fragments.js` |
 | Wording, notes, profile, downloads, APIs and MCP | `mayphus/mayphus` |
-| Content version | `content.lock.json` |
 | Build and release | `scripts/`, `wrangler.jsonc`, `.github/` |
 
-## Update content
+## Automatic content publication
 
-After the content PR merges and its Check passes, copy that exact commit SHA and run:
+Merge reviewed content to its main branch. Website Ship polls that trusted branch
+hourly at minute 17 using existing read-only access, so content-only changes publish
+without a website PR. GitHub scheduling can be delayed; this is polling, not an
+immediate cross-repository event. Website main pushes and intentional manual retries
+also run Ship. Each run checks both repositories, verifies an immutable preview,
+and promotes exactly that reviewed version. A failed build or review preserves the
+currently deployed version. Scheduled runs currently revalidate and release even
+when source is unchanged; no write token, new credential or cross-repo permission
+is needed. PR Check validates without deploying PR code.
 
-```sh
-scripts/node22 npm run content:update -- FULL_CONTENT_COMMIT_SHA
-```
-
-This fetches the exact content commit and checks both repositories. If validation
-fails, it restores the previous lock. Open a website PR containing the lock change;
-its Check validates the composed site. An authorized merge to main runs Ship
-automatically. No separate Ship dispatch is needed. Updating the pin does not publish.
-The existing `content:pin -- ../mayphus` command remains available for local checkouts. A local, clean checkout at the
-pinned commit can be used for development:
-
-```sh
-MAYPHUS_CONTENT_DIR=../mayphus scripts/node22 npm run check
-```
-
-Release commands reject this override and fetch the pinned GitHub source.
+Build metadata and release receipts retain both resolved commits for provenance.
+An upstream content commit arriving during review is handled by a later run; it
+cannot change the bytes being promoted. Releases reject local source overrides.
 The build rejects content/renderer asset collisions and escapes homepage fields.
 Generated `dist/` and `.cache/` are never authoritative or committed.
 

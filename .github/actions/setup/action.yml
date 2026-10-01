@@ -1,5 +1,5 @@
 name: Set up Mayphus
-description: Check out pinned content and install the locked website dependencies
+description: Resolve latest main content and install the locked website dependencies
 inputs:
   content-read-key:
     description: Existing read-only deploy key for mayphus/mayphus
@@ -7,26 +7,26 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Read and validate pinned content
-      id: content
-      shell: bash
-      run: |
-        node --input-type=module -e '
-          import {readFileSync, appendFileSync} from "node:fs";
-          import assert from "node:assert/strict";
-          const lock = JSON.parse(readFileSync("content.lock.json", "utf8"));
-          assert.equal(lock.repository, "https://github.com/mayphus/mayphus.git");
-          assert.match(lock.commit, /^[a-f0-9]{40}$/);
-          appendFileSync(process.env.GITHUB_OUTPUT, `commit=${lock.commit}\n`);
-        '
-    - name: Check out private content with read-only access
+    - name: Resolve private content main with existing read-only access
       uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       with:
         repository: mayphus/mayphus
-        ref: ${{ steps.content.outputs.commit }}
+        ref: main
         path: .cache/content
         ssh-key: ${{ inputs.content-read-key }}
         persist-credentials: false
+    - name: Record the resolved build identity
+      shell: bash
+      run: |
+        node --input-type=module -e '
+          import {writeFileSync, appendFileSync} from "node:fs";
+          import {execFileSync} from "node:child_process";
+          import assert from "node:assert/strict";
+          const commit = execFileSync("git", ["-C", ".cache/content", "rev-parse", "HEAD"], {encoding:"utf8"}).trim();
+          assert.match(commit, /^[a-f0-9]{40}$/);
+          writeFileSync(".cache/content-source.json", JSON.stringify({repository:"https://github.com/mayphus/mayphus.git", ref:"refs/heads/main", commit}) + "\n");
+          appendFileSync(process.env.GITHUB_ENV, "MAYPHUS_CONTENT_RESOLVED=1\n");
+        '
     - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
       with:
         node-version-file: .node-version

@@ -27,14 +27,14 @@ async function assetHash(){
  async function walk(dir){for(const entry of (await readdir(dir,{withFileTypes:true})).sort((a,b)=>a.name.localeCompare(b.name))){const path=`${dir}/${entry.name}`;if(entry.isDirectory())await walk(path);else{hash.update(path);hash.update(await readFile(path));}}}
  await walk('dist');
  hash.update(await readFile('.cache/worker.mjs'));
- hash.update(await readFile('content.lock.json'));
+ hash.update(await readFile('.cache/build.json'));
  return hash.digest('hex');
 }
 async function main(){
  const [command,id]=process.argv.slice(2);
  if(!['review','ship'].includes(command))throw new Error('Usage: node scripts/deploy.mjs review | ship VERSION');
  assert.equal(git('status','--porcelain'),'','Release requires a clean checkout');
- assert.ok(!process.env.MAYPHUS_CONTENT_DIR,'Release must use the pinned GitHub content checkout');
+ assert.ok(!process.env.MAYPHUS_CONTENT_DIR,'Release must use trusted GitHub main content');
  const commit=git('rev-parse','HEAD');
  const tag=`commit-${commit.slice(0,12)}`;
  if(command==='review'){
@@ -48,7 +48,8 @@ async function main(){
   verifyVersion(JSON.parse(wrangler('versions','view',version,'-c','wrangler.jsonc','--json')),version,commit);
   run(process.execPath,['scripts/check-cloud-live.mjs',url],true);
   await mkdir('.cache',{recursive:true});
-  await writeFile(receipt,JSON.stringify({commit,version,url,assets:await assetHash()}));
+  const {contentCommit:content} = JSON.parse(await readFile('.cache/build.json','utf8'));
+  await writeFile(receipt,JSON.stringify({commit,content,version,url,assets:await assetHash()}));
   console.log(`Review version: ${version}\nReview URL: ${url}`);
  }else{
   assert.match(id||'',/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/);
