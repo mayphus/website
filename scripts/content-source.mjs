@@ -26,7 +26,7 @@ export async function contentSource() {
  assert.ok(!process.env.MAYPHUS_CONTENT_DIR, 'Builds use trusted GitHub main, not a local source override');
  await mkdir('.cache', {recursive:true});
  try { await access(resolve(source,'.git')); }
- catch { git(process.cwd(), 'clone', '--no-checkout', '--filter=blob:none', repository, source); }
+ catch { git(process.cwd(), 'clone', '--branch', 'main', '--single-branch', '--depth=1', '--filter=blob:none', repository, source); }
  assert.ok([repository,'git@github.com:mayphus/mayphus.git'].includes(git(source,'remote','get-url','origin')), 'Unexpected content repository');
  const commit = await selectContent({
   prepared: process.env.MAYPHUS_CONTENT_RESOLVED === '1',
