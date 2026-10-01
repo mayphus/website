@@ -1,7 +1,26 @@
 # Release and migration
 
-The website is the only production deployment owner. Preserve the existing
-Cloudflare Worker name, domain route, R2, AI and rate-limit bindings.
+The website owns production deployment of the Mayphus site Worker. Preserve the
+existing Cloudflare Worker name, domain route, R2, AI and rate-limit bindings.
+Input Foundry independently owns the more-specific `mayphus.org/typing*` route;
+do not replace or delete that service route when releasing the website.
+
+## Live verification boundaries
+
+The [Input Foundry configuration](https://github.com/mayphus/input-foundry/blob/main/wrangler.jsonc)
+and its README define the separate typing service. On the production origin,
+verify its service identity, HTML workbench, supported Flypy catalog entry,
+matching engine schema, WASM signature, and a real Rime ZIP with valid archive
+checksums and the selected schema. Its compiled files can advance independently
+of the website content pin, so they are not compared to that older publication.
+The immutable website preview still verifies its own `/typing/` text, alias and
+exact pinned ZIP bytes; it does not exercise the production route delegation.
+
+Website-owned homepage, canonical text, aliases, document metadata and API checks
+remain tied to the reviewed build. Text pages and aliases retry the same strict
+content checks for up to 12 attempts, five seconds apart, to allow edge propagation;
+exhausted retries fail the release. A generic HTML page, missing typing service,
+invalid runtime or corrupt download cannot satisfy the delegated service checks.
 
 ## Initial handoff
 

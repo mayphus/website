@@ -4,7 +4,7 @@ import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {buildSite} from './build-site.mjs';
 import {render} from './render.mjs';
-execFileSync(process.execPath,['--test','scripts/check-pipeline.mjs'],{stdio:'inherit'});
+execFileSync(process.execPath,['--test','scripts/check-pipeline.mjs','scripts/check-live-contracts.mjs'],{stdio:'inherit'});
 await mkdir('dist/unpublished',{recursive:true});
 await writeFile('dist/unpublished/fixture.json','{}');
 const {source} = await buildSite({checkContent:true});
