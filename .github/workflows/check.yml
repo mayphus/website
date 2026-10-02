@@ -19,6 +19,7 @@ jobs:
           node-version-file: .node-version
           cache: npm
       - run: npm ci --prefer-offline --no-audit
-      # PR-controlled code never receives private-content or deployment secrets.
+      # This configured PR check does not request content or deployment secrets.
+      # The existing repository-scoped read key retains its documented limits.
       # Full composed-content checks run again on trusted main before release.
       - run: npm run check:public

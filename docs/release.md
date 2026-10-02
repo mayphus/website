@@ -27,10 +27,11 @@ invalid runtime or corrupt download cannot satisfy the delegated service checks.
 1. Publish the approved content split to mayphus/mayphus. Its former Ship workflow
    is removed; content pushes validate; a successful trusted main check dispatches website Ship. Let any earlier Ship run finish.
 2. Create mayphus/website, publish these sources; each build resolves content main once.
-3. Configure a read-only deploy key on mayphus/mayphus and save its private key
-   as website repository secret CONTENT_READ_KEY. Configure the production environment with
-   CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN using the existing authorized
-   Cloudflare credentials. Keep secret values out of files and logs.
+3. Reuse the existing read-only content deploy key, already stored as website
+   repository secret CONTENT_READ_KEY. A replacement key is not needed for this
+   workflow. CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN remain in the existing
+   production environment restricted to main. Keep secret values out of files
+   and logs.
 4. Run the website Ship workflow. Verify its immutable review and production
    health/homepage/record checks before considering the handoff complete.
 
@@ -86,14 +87,23 @@ Content dispatches use source/production identity for deduplication; a new run I
 alone never makes an already verified source pair deploy again. Production receipts contain
 only public build identities and hashes; no credential values are cached.
 
-Website PR checks cancel older checks for the same PR. They install the public
-website lock and run `npm run check:public` with no secrets. They do not claim a
+Website PR checks cancel older checks for the same PR. The configured Check installs
+the public website lock and runs `npm run check:public` without requesting secrets. They do not claim a
 full private-content integration pass. Trusted main Ship runs `npm run check`
 before any upload. Its existing read-only content key is retained only for that
 job's moving-main guards and is removed by checkout's post-job cleanup. Deployment
 credentials remain scoped to the production environment; keep that environment
-restricted to trusted main too. Do not use `pull_request_target` or expose secrets
-to PR-controlled code to restore broader PR coverage.
+restricted to trusted main too. Do not use `pull_request_target` or pass secrets to the configured PR check to
+restore broader PR coverage.
+
+The existing CONTENT_READ_KEY remains a **repository secret**, preserving the
+existing access setup. It is read-only but can read the private content repository.
+A same-repository PR author who can edit workflow YAML can explicitly request a
+repository secret; the current Check's lack of secret references does not prevent
+that. This is a known retained limitation, not a claim of repository-wide PR secret
+isolation. Replacing or migrating the key is optional hardening and is not part of
+this activation. Cloudflare deployment secrets and the cross-repository dispatch
+token are separately protected by their main-only environments.
 
 Website main pushes and successful content-main checks are normal release triggers.
 Do not also manually dispatch the same change. Manual retry revalidates, uploads a

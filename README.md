@@ -49,9 +49,13 @@ Activation requires an approved, expiring fine-grained token restricted to
 `mayphus/website` Actions write, securely stored as `WEBSITE_DISPATCH_TOKEN` in the
 private content repository's main-only `website-publication` environment. Confirm
 that this private repository's existing plan supports environment secrets and
-selected-branch deployment policies before configuring it. PR checks receive no
-private-content or deployment secrets and run public pipeline/contract tests;
+selected-branch deployment policies before configuring it. The configured PR Check requests no
+private-content or deployment secrets and runs public pipeline/contract tests;
 full composed private-content checks run on trusted main before release.
+The existing repository-scoped `CONTENT_READ_KEY` is retained. A writer who can
+change a same-repository PR workflow can request that repository secret; the
+current PR Check does not establish a repository-wide secret isolation boundary.
+Cloudflare deployment secrets remain in the main-only production environment.
 
 Build metadata and release receipts retain both resolved commits for provenance.
 An upstream content commit arriving during review blocks promotion and is handled
