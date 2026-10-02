@@ -12,14 +12,14 @@ scripts/node22 npm run check
 scripts/node22 npm run dev
 ```
 
-`content.lock.json` selects an exact content commit. The build fetches it
-into ignored `.cache/content`, installs its locked dependencies and runs its
-export. It renders `public/index.html` with the exported `homepage.json`, copies
-CSS/browser assets and bundles the content repository's Worker. Downloads and
-API URLs stay on the same origin. No second backend or runtime GitHub fetch is
-required. The content repository is private: local builds require authorized Git access;
-GitHub Actions uses a dedicated read-only deploy key (`CONTENT_READ_KEY`).
-First builds need GitHub/npm access; prepared checkouts build offline.
+Each build resolves the newest `mayphus/mayphus` main into ignored
+`.cache/content`, installs its locked dependencies and runs its export. CI records
+the resolved commit in ignored `.cache/content-source.json` and reuses it throughout
+that build. Local builds fetch main afresh. There is no committed content pin or
+content-update PR. It renders `public/index.html` with exported `homepage.json`,
+copies browser assets and bundles the content repository's Worker. Downloads and
+API URLs stay on the same origin. The private content repository uses existing
+read-only `CONTENT_READ_KEY` in Actions; local builds require authorized Git access.
 
 | Change | Location |
 | --- | --- |
@@ -27,29 +27,39 @@ First builds need GitHub/npm access; prepared checkouts build offline.
 | Styling | `public/landing.css` |
 | Legacy anchor behavior | `public/fragments.js` |
 | Wording, notes, profile, downloads, APIs and MCP | `mayphus/mayphus` |
-| Content version | `content.lock.json` |
 | Build and release | `scripts/`, `wrangler.jsonc`, `.github/` |
 
-## Update content
+## Automatic content publication
 
-After the content PR merges and its Check passes, copy that exact commit SHA and run:
+After reviewed content merges to main and its Check job succeeds, the content
+repository dispatches Website Ship on main. This is event-driven: no scheduled
+poll, committed pin, content-update PR or combined repository. Website main pushes
+also trigger Ship; an empty manual dispatch forces an intentional checked retry.
 
-```sh
-scripts/node22 npm run content:update -- FULL_CONTENT_COMMIT_SHA
-```
+The dispatch carries repository, checked commit, run ID and run attempt as a
+wake-up identity. It cannot choose executable code. Ship resolves current trusted
+main in both repositories, runs both sets of checks, verifies an immutable preview,
+and promotes that exact version without rebuilding. If either main moves before
+promotion, the release fails closed and the newer event can publish the latest state.
+Duplicate or delayed events skip only when both current source commits and a
+verified receipt match the exact current production deployment at 100% traffic.
+A missing receipt or unavailable comparison runs the normal checked release.
 
-This fetches the exact content commit and checks both repositories. If validation
-fails, it restores the previous lock. Open a website PR containing the lock change;
-its Check validates the composed site. An authorized merge to main runs Ship
-automatically. No separate Ship dispatch is needed. Updating the pin does not publish.
-The existing `content:pin -- ../mayphus` command remains available for local checkouts. A local, clean checkout at the
-pinned commit can be used for development:
+Activation requires an approved, expiring fine-grained token restricted to
+`mayphus/website` Actions write, securely stored as `WEBSITE_DISPATCH_TOKEN` in the
+private content repository's main-only `website-publication` environment. Confirm
+that this private repository's existing plan supports environment secrets and
+selected-branch deployment policies before configuring it. The configured PR Check requests no
+private-content or deployment secrets and runs public pipeline/contract tests;
+full composed private-content checks run on trusted main before release.
+The existing repository-scoped `CONTENT_READ_KEY` is retained. A writer who can
+change a same-repository PR workflow can request that repository secret; the
+current PR Check does not establish a repository-wide secret isolation boundary.
+Cloudflare deployment secrets remain in the main-only production environment.
 
-```sh
-MAYPHUS_CONTENT_DIR=../mayphus scripts/node22 npm run check
-```
-
-Release commands reject this override and fetch the pinned GitHub source.
+Build metadata and release receipts retain both resolved commits for provenance.
+An upstream content commit arriving during review blocks promotion and is handled
+by a later run; it cannot change the bytes being promoted. Releases reject local source overrides.
 The build rejects content/renderer asset collisions and escapes homepage fields.
 Generated `dist/` and `.cache/` are never authoritative or committed.
 

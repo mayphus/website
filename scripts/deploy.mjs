@@ -4,6 +4,7 @@ import {mkdir,writeFile,readFile,readdir} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {checkContentMain} from './content-source.mjs';
 const run=(program,args,inherit=false)=>execFileSync(program,args,{encoding:'utf8',stdio:inherit?'inherit':'pipe',env:{...process.env,WRANGLER_LOG_PATH:resolve('.wrangler/logs/deploy.log')}})?.trim();
 const git=(...args)=>run('git',args);
 const wrangler=(...args)=>run('node_modules/.bin/wrangler',args);
@@ -22,19 +23,28 @@ export function verifySource(branch,status,head,remote){
  assert.equal(status,'','Production requires a clean checkout');
  assert.match(head,/^[a-f0-9]{40}$/);assert.equal(head,remote,'Main moved; review the new commit');
 }
+export async function promoteReviewed({checkSources,checkVersion,checkPreview,deployVersion,deployTriggers,checkProduction}) {
+ await checkSources();
+ await checkVersion();
+ await checkPreview();
+ await checkSources();
+ await deployVersion();
+ await deployTriggers();
+ await checkProduction();
+}
 async function assetHash(){
  const hash=createHash('sha256');
  async function walk(dir){for(const entry of (await readdir(dir,{withFileTypes:true})).sort((a,b)=>a.name.localeCompare(b.name))){const path=`${dir}/${entry.name}`;if(entry.isDirectory())await walk(path);else{hash.update(path);hash.update(await readFile(path));}}}
  await walk('dist');
  hash.update(await readFile('.cache/worker.mjs'));
- hash.update(await readFile('content.lock.json'));
+ hash.update(await readFile('.cache/build.json'));
  return hash.digest('hex');
 }
 async function main(){
  const [command,id]=process.argv.slice(2);
  if(!['review','ship'].includes(command))throw new Error('Usage: node scripts/deploy.mjs review | ship VERSION');
  assert.equal(git('status','--porcelain'),'','Release requires a clean checkout');
- assert.ok(!process.env.MAYPHUS_CONTENT_DIR,'Release must use the pinned GitHub content checkout');
+ assert.ok(!process.env.MAYPHUS_CONTENT_DIR,'Release must use trusted GitHub main content');
  const commit=git('rev-parse','HEAD');
  const tag=`commit-${commit.slice(0,12)}`;
  if(command==='review'){
@@ -48,21 +58,26 @@ async function main(){
   verifyVersion(JSON.parse(wrangler('versions','view',version,'-c','wrangler.jsonc','--json')),version,commit);
   run(process.execPath,['scripts/check-cloud-live.mjs',url],true);
   await mkdir('.cache',{recursive:true});
-  await writeFile(receipt,JSON.stringify({commit,version,url,assets:await assetHash()}));
+  const {contentCommit:content} = JSON.parse(await readFile('.cache/build.json','utf8'));
+  await writeFile(receipt,JSON.stringify({commit,content,version,url,assets:await assetHash()}));
   console.log(`Review version: ${version}\nReview URL: ${url}`);
  }else{
   assert.match(id||'',/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/);
   const reviewed=JSON.parse(await readFile(receipt,'utf8'));
   assert.equal(reviewed.commit,commit);assert.equal(reviewed.version,id);
   assert.equal(reviewed.assets,await assetHash(),'Build output differs from the verified review');
-  const checkMain=()=>verifySource(git('branch','--show-current'),git('status','--porcelain'),commit,git('ls-remote','--exit-code','origin','refs/heads/main').split(/\s/)[0]);
-  checkMain();
-  verifyVersion(JSON.parse(wrangler('versions','view',id,'-c','wrangler.jsonc','--json')),id,commit);
-  run(process.execPath,['scripts/check-cloud-live.mjs',reviewed.url],true);
-  checkMain();
-  console.log(wrangler('versions','deploy',`${id}@100%`,'-c','wrangler.jsonc','--message',`production ${id} from ${tag}`,'--yes'));
-  console.log(wrangler('triggers','deploy','-c','wrangler.jsonc'));
-  run(process.execPath,['scripts/check-cloud-live.mjs','https://mayphus.org'],true);
+  const checkMain=()=>{
+   verifySource(git('branch','--show-current'),git('status','--porcelain'),commit,git('ls-remote','--exit-code','origin','refs/heads/main').split(/\s/)[0]);
+   checkContentMain(reviewed.content);
+  };
+  await promoteReviewed({
+   checkSources:checkMain,
+   checkVersion:()=>verifyVersion(JSON.parse(wrangler('versions','view',id,'-c','wrangler.jsonc','--json')),id,commit),
+   checkPreview:()=>run(process.execPath,['scripts/check-cloud-live.mjs',reviewed.url],true),
+   deployVersion:()=>console.log(wrangler('versions','deploy',`${id}@100%`,'-c','wrangler.jsonc','--message',`production ${id} from ${tag}`,'--yes')),
+   deployTriggers:()=>console.log(wrangler('triggers','deploy','-c','wrangler.jsonc')),
+   checkProduction:()=>run(process.execPath,['scripts/check-cloud-live.mjs','https://mayphus.org'],true),
+  });
  }
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url))await main();

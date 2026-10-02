@@ -17,8 +17,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   await release({
     run: (...args) => execFileSync(process.execPath, ['scripts/deploy.mjs', ...args], {stdio:'inherit'}),
     readReceipt: async () => JSON.parse(await readFile('.cache/review.json', 'utf8')),
-    summarize: async ({commit, version}) => {
-      const {commit:content} = JSON.parse(await readFile('content.lock.json', 'utf8'));
+    summarize: async ({commit, content, version}) => {
       const summary = `### Shipped Mayphus\nWebsite: ${commit}\nContent: ${content}\nCloudflare version: ${version}\nReview and production checks passed.\nhttps://mayphus.org/?__asset_version=${version}\n`;
       console.log(summary);
       if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, summary);
