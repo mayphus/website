@@ -4,6 +4,7 @@ import {readFile, writeFile, appendFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {verifyVersion} from './deploy.mjs';
+import {currentContentMain} from './content-source.mjs';
 const uuid = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
 const sha = /^[a-f0-9]{40}$/;
 const marker = '.cache/verified-production.json';
@@ -17,11 +18,12 @@ export function productionIdentity(deployment) {
  assert.equal(percentage,100);
  return {deployment:deployment.id,version};
 }
-export async function canReuseProduction({website,content,readSuccess,readProduction,readVersion,readWebsiteMain,force=false}) {
+export async function canReuseProduction({website,content,readSuccess,readProduction,readVersion,readWebsiteMain,readContentMain,force=false}) {
  if (force) return false;
  try {
   assert.match(website,sha); assert.match(content,sha);
   assert.equal(await readWebsiteMain(),website,'Website main moved before reuse');
+  assert.equal(await readContentMain(),content,'Content main moved before reuse');
   const success = await readSuccess();
   assert.equal(success.status,'verified');
   assert.equal(success.website,website); assert.equal(success.content,content);
@@ -30,6 +32,8 @@ export async function canReuseProduction({website,content,readSuccess,readProduc
   assert.equal(success.deployment,current.deployment);
   assert.equal(success.version,current.version);
   verifyVersion(await readVersion(current.version),current.version,website);
+  assert.equal(await readWebsiteMain(),website,'Website main moved during provenance checks');
+  assert.equal(await readContentMain(),content,'Content main moved during provenance checks');
   return true;
  } catch { return false; }
 }
@@ -64,7 +68,8 @@ async function main() {
    readSuccess:async () => JSON.parse(await readFile(marker,'utf8')),
    readProduction:async () => wrangler('deployments','status'),
    readVersion:async id => wrangler('versions','view',id),
-   force:process.env.GITHUB_EVENT_NAME === 'workflow_dispatch',
+   readContentMain:async () => currentContentMain(),
+   force:JSON.parse(await readFile('.cache/publication-event.json','utf8')).kind === 'manual-retry',
   });
   await output('unchanged',String(reuse));
   console.log(reuse ? 'Current production matches this verified website/content release; no build or deployment needed.' : 'No matching verified current production; run the full checked release.');

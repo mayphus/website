@@ -25,7 +25,7 @@ invalid runtime or corrupt download cannot satisfy the delegated service checks.
 ## Initial handoff
 
 1. Publish the approved content split to mayphus/mayphus. Its former Ship workflow
-   is removed; content pushes validate; website polling publishes trusted main. Let any earlier Ship run finish.
+   is removed; content pushes validate; a successful trusted main check dispatches website Ship. Let any earlier Ship run finish.
 2. Create mayphus/website, publish these sources; each build resolves content main once.
 3. Configure a read-only deploy key on mayphus/mayphus and save its private key
    as website repository secret CONTENT_READ_KEY. Configure the production environment with
@@ -46,18 +46,26 @@ review, verify it, promote exactly that version, and verify production.
 Do not run local deployment concurrently. The receipt binds website commit,
 resolved content commit, bundled Worker and asset bytes to the reviewed version.
 
-For content-only changes, merge the reviewed content PR to main. Ship polls content
-main hourly at minute 17 with the existing read-only deploy key. No maintained lock,
-content-update command, or website pin PR remains. GitHub may delay scheduled runs;
-this is the supported no-new-permission alternative to an immediate cross-repository
-webhook. Schedule and manual runs execute only trusted website main; content checkout
-always resolves trusted content main, never an event payload or PR branch.
+For content-only changes, merge the reviewed content PR to main. Its separate
+`website-publication` job depends on successful content checks and runs only for a
+push to `mayphus/mayphus` main. It verifies the checked SHA is still current, then
+dispatches the fixed website `ship.yml` workflow on `main` with the source repository,
+full SHA, Check run ID and run attempt. Superseded source runs do not dispatch.
+No maintained lock, content-update command, website pin PR or polling remains.
+
+The event is a wake-up, not authorization or a checkout ref. Website Ship checks
+out current trusted website main and resolves current trusted content main. It
+never runs code from event fields or a PR. Partial/malformed source identities fail
+closed. If content advanced after dispatch, Ship checks the newer main instead.
+The source run can still be in progress while its dispatch job runs: its successful
+Check job is the sender gate. The receiver independently runs full content checks;
+it does not claim to authenticate the run fields through the private Actions API.
 
 The setup action checks out main once and records its full commit in ignored
 `.cache/content-source.json`. Checks and bundling reuse that checkout. The immutable
 review receipt binds website commit, resolved content commit, Worker and asset bytes;
-promotion does not rebuild or fetch newer content. Content moving during review is
-handled in a later release. A build/review failure never changes production.
+promotion does not rebuild or fetch newer content. Both website and content mains are read again around final preview verification.
+If either moved, promotion fails closed and a newer event handles the latest state. A build/review failure never changes production.
 Unchanged sources skip build and deployment only when a trusted cached success
 receipt matches both source commits and the exact current Cloudflare production
 deployment at 100% traffic. Missing or unavailable provenance falls back to the
@@ -66,35 +74,40 @@ full checked release.
 Production provenance is saved only after strict production verification succeeds,
 using the existing Actions cache service on trusted website main. Its exact cache
 key includes the Cloudflare deployment ID, not only a source commit or workflow run.
-The next poll reads current deployment status with the existing Cloudflare token,
+The next automatic event reads current deployment status with the existing Cloudflare token,
 restores that exact receipt, then reads current status again before deciding to skip.
 Both full source commits, deployment ID, single version at 100% traffic and version
 metadata must match. A later promotion followed by failed/interrupted verification
 has a different deployment ID and no verified receipt, so it cannot reuse an older
 success. Evicted receipts, malformed data or unavailable reads require a normal full
 checked release. No fuzzy restore keys or new repository/API permissions are used.
-Manual workflow dispatch always forces a checked retry. Production receipts contain
+Manual workflow dispatch with all source inputs empty always forces a checked retry.
+Content dispatches use source/production identity for deduplication; a new run ID
+alone never makes an already verified source pair deploy again. Production receipts contain
 only public build identities and hashes; no credential values are cached.
 
-Website PR checks cancel older checks for the same PR; Ship remains serialized and
-is never cancelled in progress. No content repository write access or new credential
-is required. Immediate content-merge dispatch would require separately authorized,
-narrow website workflow write access; do not broaden the existing read-only key,
-create a general-purpose token, or use pull_request_target.
+Website PR checks cancel older checks for the same PR. They install the public
+website lock and run `npm run check:public` with no secrets. They do not claim a
+full private-content integration pass. Trusted main Ship runs `npm run check`
+before any upload. Its existing read-only content key is retained only for that
+job's moving-main guards and is removed by checkout's post-job cleanup. Deployment
+credentials remain scoped to the production environment; keep that environment
+restricted to trusted main too. Do not use `pull_request_target` or expose secrets
+to PR-controlled code to restore broader PR coverage.
 
-Website main pushes and the hourly content poll are the normal release triggers. Do not also dispatch Ship for the
-same change. Manual dispatch remains available for an intentional retry: it
-revalidates, uploads a fresh immutable version and promotes it. Concurrency protects
-the running release from cancellation, but GitHub retains only one pending run;
-a newer run can replace that pending run. Not every queued trigger will execute.
-Any superseded commit that does start skips before setup/upload. If main moves
-during review, the existing promotion guards still
-fail closed. A failed review never promotes; a failed production verification
-fails the run and requires investigation (it does not imply automatic rollback).
+Website main pushes and successful content-main checks are normal release triggers.
+Do not also manually dispatch the same change. Manual retry revalidates, uploads a
+fresh immutable version and promotes it. Ship remains serialized and is never
+cancelled in progress. GitHub retains only one pending run; newer events may replace
+older pending runs. Every receiver resolves the newest main, so events are coalesced
+rather than promising every intermediate commit a deployment. A run whose resolved
+main is already superseded skips before setup/upload. Main moving during review
+fails the promotion guards. A failed review never promotes; a failed production
+verification fails the run and requires investigation, not automatic rollback.
 
-PR Check and Ship share one setup action, the existing read-only content key and
-an npm download cache keyed by both dependency locks. Every build still uses
-`npm ci`; cached dependencies never replace lockfile validation. Repository permissions and production environment protections remain unchanged.
+Trusted Ship caches npm downloads by both dependency locks; every build still uses
+`npm ci`. Cached dependencies never replace lockfile validation. No source files,
+private history or secrets are copied into the public website repository.
 
 For an authorized local release from a clean, pushed main:
 
@@ -123,10 +136,48 @@ For an urgent production version rollback, obtain explicit approval and coordina
 with any in-flight Ship before using Cloudflare's version rollback controls;
 verify production and follow with a source revert so the next release agrees.
 
-## Cross-repository automation boundary
+## Cross-repository automation boundary and activation
 
-The content repository only validates; website Ship polls trusted content main with
-its existing read-only key. This adds a schedule but no token, repository write
-permission, or content pin. No untrusted PR content is deployed. A failed download,
-build, or immutable preview leaves the current production version running. A failed
-production verification still requires investigation, not automatic rollback.
+Keep the content repository private and the website repository separate. The
+read-only `CONTENT_READ_KEY` cannot dispatch another repository, and the content
+repository's normal `GITHUB_TOKEN` is scoped to its own repository. Do not broaden
+either or reuse a general-purpose credential.
+
+1. Review and merge the receiver first with explicit release approval. Its website
+   main push verifies and publishes the newest checked content through the existing
+   immutable review/promotion pipeline. The receiver must exist on default main
+   before the sender can call `workflow_dispatch`.
+2. Confirm private-repository environment secrets and selected deployment branches
+   are supported by the owner's existing plan. For personal private repositories,
+   GitHub documents these features for Pro, not Free. Do not silently require a
+   paid upgrade or fall back to an unprotected repository secret.
+3. After specific user approval, the user creates an expiring fine-grained token
+   (recommended lifetime: 90 days), resource owner `mayphus`, selected repository
+   **only `mayphus/website`**, repository **Actions: read and write** and automatic
+   **Metadata: read**. No Contents write, administration, other repositories or
+   organization permissions are needed. Token generation and secret entry occur
+   in GitHub's secure UI, never chat, tracked files or logs.
+4. In private `mayphus/mayphus`, configure the `website-publication` environment
+   with selected deployment branch **main only** (not all/protected branches while
+   main has no protection), then save that token as `WEBSITE_DISPATCH_TOKEN` there.
+   Set the branch policy before storing the secret. A main-only `if` is additional
+   defense; it does not replace the environment boundary because PR authors can
+   edit workflow YAML. Confirm the existing website production environment also
+   restricts secret-bearing jobs to trusted main.
+5. Review and merge the sender with explicit approval. Confirm successful content
+   Check, a successful dispatch response, and the resulting Website Ship's exact
+   source commits, immutable preview and production verification. Dispatch success
+   alone is not publication proof. Missing/expired credentials or API failures fail
+   the source publication job; after repair rerun the job if its source is current,
+   otherwise run the newest main check or intentionally retry website main.
+
+GitHub Actions write is the narrowest API permission for workflow dispatch, but it
+also permits other Actions operations on the website repository; fine-grained PATs
+cannot be limited to one workflow endpoint. A separately approved GitHub App can
+issue short-lived installation tokens with that same website-only permission, but
+requires its own installation and private-key lifecycle. The supported baseline
+here uses the explicitly approved expiring token and main-restricted environment.
+
+References: [workflow dispatch permissions](https://docs.github.com/en/rest/actions/workflows#create-a-workflow-dispatch-event),
+[environments and private-plan support](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments),
+[automatic token scope](https://docs.github.com/en/actions/concepts/security/github_token).

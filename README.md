@@ -31,22 +31,31 @@ read-only `CONTENT_READ_KEY` in Actions; local builds require authorized Git acc
 
 ## Automatic content publication
 
-Merge reviewed content to its main branch. Website Ship polls that trusted branch
-hourly at minute 17 using existing read-only access, so content-only changes publish
-without a website PR. GitHub scheduling can be delayed; this is polling, not an
-immediate cross-repository event. Website main pushes and intentional manual retries
-also run Ship. Changed source runs both repository checks, verifies an immutable
-preview, and promotes exactly that reviewed version. A failed build or review
-preserves the currently deployed version. Unchanged source skips building and
-deployment only with a verified receipt for
-the exact current production deployment and matching website/content commits. A
-missing receipt or unavailable comparison runs the normal checked release. No new
-credential or cross-repository permission is needed. PR Check validates without
-deploying PR code.
+After reviewed content merges to main and its Check job succeeds, the content
+repository dispatches Website Ship on main. This is event-driven: no scheduled
+poll, committed pin, content-update PR or combined repository. Website main pushes
+also trigger Ship; an empty manual dispatch forces an intentional checked retry.
+
+The dispatch carries repository, checked commit, run ID and run attempt as a
+wake-up identity. It cannot choose executable code. Ship resolves current trusted
+main in both repositories, runs both sets of checks, verifies an immutable preview,
+and promotes that exact version without rebuilding. If either main moves before
+promotion, the release fails closed and the newer event can publish the latest state.
+Duplicate or delayed events skip only when both current source commits and a
+verified receipt match the exact current production deployment at 100% traffic.
+A missing receipt or unavailable comparison runs the normal checked release.
+
+Activation requires an approved, expiring fine-grained token restricted to
+`mayphus/website` Actions write, securely stored as `WEBSITE_DISPATCH_TOKEN` in the
+private content repository's main-only `website-publication` environment. Confirm
+that this private repository's existing plan supports environment secrets and
+selected-branch deployment policies before configuring it. PR checks receive no
+private-content or deployment secrets and run public pipeline/contract tests;
+full composed private-content checks run on trusted main before release.
 
 Build metadata and release receipts retain both resolved commits for provenance.
-An upstream content commit arriving during review is handled by a later run; it
-cannot change the bytes being promoted. Releases reject local source overrides.
+An upstream content commit arriving during review blocks promotion and is handled
+by a later run; it cannot change the bytes being promoted. Releases reject local source overrides.
 The build rejects content/renderer asset collisions and escapes homepage fields.
 Generated `dist/` and `.cache/` are never authoritative or committed.
 

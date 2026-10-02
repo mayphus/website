@@ -14,7 +14,11 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          content-read-key: ${{ secrets.CONTENT_READ_KEY }}
-      - run: npm run check
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit
+      # PR-controlled code never receives private-content or deployment secrets.
+      # Full composed-content checks run again on trusted main before release.
+      - run: npm run check:public

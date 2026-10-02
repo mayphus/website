@@ -43,3 +43,20 @@ export async function contentSource() {
  execFileSync('npm',['ci','--prefer-offline','--no-audit'],{cwd:source,stdio:'inherit'});
  return {source, commit};
 }
+
+// Read-only checkout access is retained only in trusted main release jobs.
+export function verifyContentMain(commit, {head, status, remote}) {
+ assert.match(commit, /^[a-f0-9]{40}$/);
+ assert.equal(status, '', 'Content checkout is dirty');
+ assert.equal(head, commit, 'Content checkout differs from the reviewed build');
+ assert.equal(remote, commit, 'Content main moved; review the newest trusted sources');
+}
+export function currentContentMain() {
+ const source = resolve('.cache/content');
+ assert.ok([repository,'git@github.com:mayphus/mayphus.git'].includes(git(source,'remote','get-url','origin')), 'Unexpected content repository');
+ return git(source,'ls-remote','--exit-code','origin','refs/heads/main').split(/\s/)[0];
+}
+export function checkContentMain(commit) {
+ const source = resolve('.cache/content');
+ verifyContentMain(commit, {head:git(source,'rev-parse','HEAD'),status:git(source,'status','--porcelain'),remote:currentContentMain()});
+}

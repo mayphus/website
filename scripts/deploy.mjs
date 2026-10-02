@@ -4,6 +4,7 @@ import {mkdir,writeFile,readFile,readdir} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {checkContentMain} from './content-source.mjs';
 const run=(program,args,inherit=false)=>execFileSync(program,args,{encoding:'utf8',stdio:inherit?'inherit':'pipe',env:{...process.env,WRANGLER_LOG_PATH:resolve('.wrangler/logs/deploy.log')}})?.trim();
 const git=(...args)=>run('git',args);
 const wrangler=(...args)=>run('node_modules/.bin/wrangler',args);
@@ -21,6 +22,15 @@ export function verifySource(branch,status,head,remote){
  assert.equal(branch,'main','Production requires main');
  assert.equal(status,'','Production requires a clean checkout');
  assert.match(head,/^[a-f0-9]{40}$/);assert.equal(head,remote,'Main moved; review the new commit');
+}
+export async function promoteReviewed({checkSources,checkVersion,checkPreview,deployVersion,deployTriggers,checkProduction}) {
+ await checkSources();
+ await checkVersion();
+ await checkPreview();
+ await checkSources();
+ await deployVersion();
+ await deployTriggers();
+ await checkProduction();
 }
 async function assetHash(){
  const hash=createHash('sha256');
@@ -56,14 +66,18 @@ async function main(){
   const reviewed=JSON.parse(await readFile(receipt,'utf8'));
   assert.equal(reviewed.commit,commit);assert.equal(reviewed.version,id);
   assert.equal(reviewed.assets,await assetHash(),'Build output differs from the verified review');
-  const checkMain=()=>verifySource(git('branch','--show-current'),git('status','--porcelain'),commit,git('ls-remote','--exit-code','origin','refs/heads/main').split(/\s/)[0]);
-  checkMain();
-  verifyVersion(JSON.parse(wrangler('versions','view',id,'-c','wrangler.jsonc','--json')),id,commit);
-  run(process.execPath,['scripts/check-cloud-live.mjs',reviewed.url],true);
-  checkMain();
-  console.log(wrangler('versions','deploy',`${id}@100%`,'-c','wrangler.jsonc','--message',`production ${id} from ${tag}`,'--yes'));
-  console.log(wrangler('triggers','deploy','-c','wrangler.jsonc'));
-  run(process.execPath,['scripts/check-cloud-live.mjs','https://mayphus.org'],true);
+  const checkMain=()=>{
+   verifySource(git('branch','--show-current'),git('status','--porcelain'),commit,git('ls-remote','--exit-code','origin','refs/heads/main').split(/\s/)[0]);
+   checkContentMain(reviewed.content);
+  };
+  await promoteReviewed({
+   checkSources:checkMain,
+   checkVersion:()=>verifyVersion(JSON.parse(wrangler('versions','view',id,'-c','wrangler.jsonc','--json')),id,commit),
+   checkPreview:()=>run(process.execPath,['scripts/check-cloud-live.mjs',reviewed.url],true),
+   deployVersion:()=>console.log(wrangler('versions','deploy',`${id}@100%`,'-c','wrangler.jsonc','--message',`production ${id} from ${tag}`,'--yes')),
+   deployTriggers:()=>console.log(wrangler('triggers','deploy','-c','wrangler.jsonc')),
+   checkProduction:()=>run(process.execPath,['scripts/check-cloud-live.mjs','https://mayphus.org'],true),
+  });
  }
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url))await main();

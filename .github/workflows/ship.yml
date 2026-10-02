@@ -3,9 +3,23 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-  # Poll trusted content main using the existing read-only key; no cross-repo token.
-  schedule:
-    - cron: "17 * * * *"
+    inputs:
+      source_repository:
+        description: Checked source repository (all source fields empty for a manual retry)
+        required: false
+        type: string
+      source_sha:
+        description: Immutable checked content main commit; a wake-up identity, never a checkout ref
+        required: false
+        type: string
+      source_run_id:
+        description: Successful content Check workflow run ID
+        required: false
+        type: string
+      source_run_attempt:
+        description: Successful content Check workflow run attempt
+        required: false
+        type: string
 permissions:
   contents: read
 # The review alias and production belong to one serialized release chain.
@@ -22,23 +36,32 @@ jobs:
       url: https://mayphus.org
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Attach the event commit to main
-        run: git switch -C main "$GITHUB_SHA"
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Validate the wake-up identity without executing event-selected code
+        run: node scripts/publication-event.mjs
+      - name: Attach the resolved trusted website main
+        run: git switch -C main HEAD
       - name: Skip superseded commits before installing or uploading
         id: current
         shell: bash
         run: |
           set -euo pipefail
           remote=$(git ls-remote --exit-code origin refs/heads/main | cut -f1)
-          if [ "$remote" = "$GITHUB_SHA" ]; then
+          current=$(git rev-parse HEAD)
+          if [ "$remote" = "$current" ]; then
             echo "current=true" >> "$GITHUB_OUTPUT"
           else
-            echo "Skipped superseded commit $GITHUB_SHA; main is $remote." >> "$GITHUB_STEP_SUMMARY"
+            echo "Skipped superseded commit $current; main is $remote." >> "$GITHUB_STEP_SUMMARY"
           fi
       - uses: ./.github/actions/setup
         if: steps.current.outputs.current == 'true'
         with:
           content-read-key: ${{ secrets.CONTENT_READ_KEY }}
+          # Checkout removes its temporary SSH key in its post-job cleanup.
+          # Trusted main needs read-only access for the final moving-main guard.
+          retain-content-access: true
       - name: Read current production deployment identity
         if: steps.current.outputs.current == 'true'
         id: production
