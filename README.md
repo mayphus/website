@@ -66,3 +66,5 @@ Generated `dist/` and `.cache/` are never authoritative or committed.
 See [release procedure](docs/release.md). The renderer and release files were
 extracted from mayphus/mayphus at `2df37f9240b046a27d519e8060d578982b7d27c0`;
 full source history remains there.
+
+Human HTML is generated from the same canonical public records as plain text, JSON/API and RSS. Browser requests with `Accept: text/html` receive HTML at canonical record URLs and aliases; explicit text requests and clients without an HTML preference retain the original text contracts. `/work/` and `/journal/` are generated indexes. Contact metadata stays in the content repository.

@@ -191,3 +191,5 @@ here uses the explicitly approved expiring token and main-restricted environment
 References: [workflow dispatch permissions](https://docs.github.com/en/rest/actions/workflows#create-a-workflow-dispatch-event),
 [environments and private-plan support](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments),
 [automatic token scope](https://docs.github.com/en/actions/concepts/security/github_token).
+
+The composed AI export is validated before generated browser views are added. The exact deployed bundle is then tested for HTML/text negotiation, HEAD, aliases and shared contact metadata. Immutable preview and production checks require exact generated HTML for representative pages as well as the existing text/API contracts.

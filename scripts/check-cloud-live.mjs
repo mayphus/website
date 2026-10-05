@@ -29,6 +29,15 @@ for (let attempt = 0; ; attempt++) {
   await delay(5000);
  }
 }
+const humanRoutes=JSON.parse(await readFile('.cache/human-routes.json','utf8'));
+for(const route of ['/profile/','/four-province-expressway-atlas/','/work/','/journal/']) {
+ const response=await get(route,{headers:{Accept:'text/html'}});
+ assert.match(response.headers.get('content-type'),/text\/html/);
+ assert.equal(response.headers.get('vary'),'Accept');
+ assert.equal(await response.text(),await readFile('dist'+humanRoutes[route],'utf8'));
+ const head=await get(route,{method:'HEAD',headers:{Accept:'text/html'}});
+ assert.equal(await head.text(),'');
+}
 const mcp = await (await get('/mcp')).json();
 assert.equal(mcp.endpoint,'/mcp');
 const index = await (await get('/agent-index.json')).json();

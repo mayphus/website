@@ -4,11 +4,11 @@ import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {buildSite} from './build-site.mjs';
 import {render} from './render.mjs';
-execFileSync(process.execPath,['--test','scripts/check-pipeline.mjs','scripts/check-live-contracts.mjs'],{stdio:'inherit'});
+execFileSync(process.execPath,['--test','scripts/check-pipeline.mjs','scripts/check-live-contracts.mjs','scripts/check-editorial.mjs'],{stdio:'inherit'});
 await mkdir('dist/unpublished',{recursive:true});
 await writeFile('dist/unpublished/fixture.json','{}');
 const {source} = await buildSite({checkContent:true});
-execFileSync(process.execPath,['scripts/check-agent-site.mjs'],{cwd:source,stdio:'inherit',env:{...process.env,MAYPHUS_SITE_DIST:resolve('dist')}});
+
 execFileSync(process.execPath,['scripts/check-release.mjs'],{stdio:'inherit'});
 const html = await readFile('dist/index.html','utf8');
 assert.ok(!html.includes('{{'));
@@ -35,3 +35,29 @@ assert.equal((await get('/api/search?q=Mayphus')).status,200);
 assert.equal((await (await get('/mcp')).json()).endpoint,'/mcp');
 assert.equal((await get('/api/private')).status,404);
 console.log('Deployment bundle passed: homepage, health, search, MCP and privacy.');
+
+const routes=JSON.parse(await readFile('.cache/human-routes.json','utf8'));
+const docs=JSON.parse(await readFile('dist/documents.json','utf8')).documents;
+for(const route of ['/profile/','/four-province-expressway-atlas/','/work/','/journal/']) {
+ const expected=await readFile('dist'+routes[route],'utf8');
+ for(const path of [route,route+'index.html']) {
+  const response=await worker.fetch(new Request('https://mayphus.org'+path,{headers:{Accept:'text/html'}}),env);
+  assert.equal(response.status,200);assert.match(response.headers.get('content-type'),/text\/html/);assert.equal(response.headers.get('vary'),'Accept');assert.equal(await response.text(),expected);
+ }
+ const head=await worker.fetch(new Request('https://mayphus.org'+route,{method:'HEAD',headers:{Accept:'text/html'}}),env);
+ assert.equal(head.status,200);assert.equal(await head.text(),'');
+}
+for(const route of ['/profile/','/four-province-expressway-atlas/']) {
+ const text=await readFile('dist'+route+'index.txt','utf8');
+ for(const accept of ['', '*/*','text/plain','text/html;q=0','text/plain;q=1,text/html;q=.5']) {
+  const response=await worker.fetch(new Request('https://mayphus.org'+route,{headers:{Accept:accept}}),env);
+  assert.equal(await response.text(),text);assert.equal(response.headers.get('vary'),'Accept');
+ }
+}
+assert.equal((await get(Object.values(routes)[0])).status,404);
+const home=JSON.parse(await readFile('dist/homepage.json','utf8'));
+if(home.contact_invitation) assert.ok(html.includes(home.contact_invitation));
+const ai=JSON.parse(await readFile('dist/ai.json','utf8'));
+if(home.contact_invitation) assert.deepEqual(ai.contact,{email:home.email,invitation:home.contact_invitation});
+assert.ok(html.includes('/four-province-expressway-atlas/'));
+console.log('Human channels passed: HTML negotiation, aliases, HEAD, original text, contact parity and hidden build assets.');

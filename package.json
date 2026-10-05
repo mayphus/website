@@ -7,6 +7,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "5.20260910.1",
     "esbuild": "^0.28.1",
+    "markdown-it": "15.0.2",
     "typescript": "6.0.3",
     "wrangler": "4.131.0",
     "yaml": "2.9.1"
@@ -21,7 +22,7 @@
     "release:review": "node scripts/deploy.mjs review",
     "release:ship": "node scripts/deploy.mjs ship",
     "release": "node scripts/release.mjs",
-    "check:public": "node --test scripts/check-pipeline.mjs scripts/check-live-contracts.mjs && node scripts/check-release.mjs",
+    "check:public": "node --test scripts/check-pipeline.mjs scripts/check-live-contracts.mjs scripts/check-editorial.mjs && node scripts/check-release.mjs",
     "check:pipeline": "node --test scripts/check-pipeline.mjs"
   }
 }

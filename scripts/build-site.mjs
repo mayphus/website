@@ -5,6 +5,7 @@ import {fileURLToPath} from 'node:url';
 import {build} from 'esbuild';
 import {contentSource} from './content-source.mjs';
 import {render} from './render.mjs';
+import {buildEditorial} from './editorial.mjs';
 export async function buildSite({checkContent=false}={}) {
  const {source,commit} = await contentSource();
  execFileSync('npm',['run',checkContent ? 'check' : 'build'],{cwd:source,stdio:'inherit'});
@@ -19,7 +20,10 @@ export async function buildSite({checkContent=false}={}) {
  await cp('public','dist',{recursive:true});
  await writeFile('dist/index.html',render(await readFile('public/index.html','utf8'),content));
  await mkdir('.cache',{recursive:true});
- await build({entryPoints:[resolve(source,'workers/worker.ts')],outfile:'.cache/worker.mjs',bundle:true,format:'esm',platform:'neutral',target:'es2022'});
+ // Validate the unchanged AI export before adding browser-only generated views.
+ execFileSync(process.execPath,['scripts/check-agent-site.mjs'],{cwd:source,stdio:'inherit',env:{...process.env,MAYPHUS_SITE_DIST:resolve('dist')}});
+ await buildEditorial(content,JSON.parse(await readFile('dist/documents.json','utf8')),JSON.parse(await readFile('dist/projects.json','utf8')));
+ await build({alias:{'mayphus-content-worker':resolve(source,'workers/worker.ts'),'mayphus-human-routes':resolve('.cache/human-routes.json')},entryPoints:[resolve('workers/human.ts')],outfile:'.cache/worker.mjs',bundle:true,format:'esm',platform:'neutral',target:'es2022'});
  await writeFile('.cache/build.json',JSON.stringify({contentCommit:commit})+'\n');
  console.log(`Website built with content ${commit}.`);
  return {source,commit};
