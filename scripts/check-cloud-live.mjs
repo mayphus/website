@@ -34,7 +34,10 @@ for(const route of ['/profile/','/four-province-expressway-atlas/','/work/','/jo
  const response=await get(route,{headers:{Accept:'text/html'}});
  assert.match(response.headers.get('content-type'),/text\/html/);
  assert.equal(response.headers.get('vary'),'Accept');
- assert.equal(response.headers.get('x-robots-tag'),new URL(base).hostname.endsWith('.workers.dev')?'noindex, nofollow, noarchive':null);
+ // Cloudflare preview URLs normalize this header to noindex at the edge.
+ const robots=response.headers.get('x-robots-tag');
+ if(new URL(base).hostname.endsWith('.workers.dev')) assert.ok(robots?.toLowerCase().split(/\s*,\s*/).includes('noindex'),'Preview must remain noindex');
+ else assert.equal(robots,null);
  assert.equal(await response.text(),await readFile('dist'+humanRoutes[route],'utf8'));
  const head=await get(route,{method:'HEAD',headers:{Accept:'text/html'}});
  assert.equal(await head.text(),'');
