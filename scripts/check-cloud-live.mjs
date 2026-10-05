@@ -3,6 +3,7 @@ import {readFile} from 'node:fs/promises';
 import {setTimeout as delay} from 'node:timers/promises';
 import {randomUUID} from 'node:crypto';
 import {typingOwner, verifyTextPage, verifyInputFoundry} from './live-contracts.mjs';
+import {canonicalHtml} from './html-contract.mjs';
 const base = process.argv[2];
 assert.match(base, /^https:\/\//);
 async function get(path, options) {
@@ -21,7 +22,7 @@ for (let attempt = 0; ; attempt++) {
  try {
   const home = await get('/');
   assert.match(home.headers.get('content-type'),/text\/html/);
-  assert.equal(await home.text(),expectedHome);
+  assert.equal(canonicalHtml(await home.text(),base),expectedHome);
   break;
  } catch (error) {
   if (attempt === 11) throw error;
@@ -31,6 +32,8 @@ for (let attempt = 0; ; attempt++) {
 }
 const humanRoutes=JSON.parse(await readFile('.cache/human-routes.json','utf8'));
 for(const route of ['/profile/','/four-province-expressway-atlas/','/work/','/journal/']) {
+ for(let attempt=0;;attempt++) {
+ try {
  const response=await get(route,{headers:{Accept:'text/html'}});
  assert.match(response.headers.get('content-type'),/text\/html/);
  assert.equal(response.headers.get('vary'),'Accept');
@@ -38,9 +41,16 @@ for(const route of ['/profile/','/four-province-expressway-atlas/','/work/','/jo
  const robots=response.headers.get('x-robots-tag');
  if(new URL(base).hostname.endsWith('.workers.dev')) assert.ok(robots?.toLowerCase().split(/\s*,\s*/).includes('noindex'),'Preview must remain noindex');
  else assert.equal(robots,null);
- assert.equal(await response.text(),await readFile('dist'+humanRoutes[route],'utf8'));
+ assert.equal(canonicalHtml(await response.text(),base),await readFile('dist'+humanRoutes[route],'utf8'));
  const head=await get(route,{method:'HEAD',headers:{Accept:'text/html'}});
  assert.equal(await head.text(),'');
+ break;
+ } catch(error) {
+ if(attempt===11) throw error;
+ console.log(`Waiting for reviewed HTML at ${route}...`);
+ await delay(5000);
+ }
+ }
 }
 const mcp = await (await get('/mcp')).json();
 assert.equal(mcp.endpoint,'/mcp');
