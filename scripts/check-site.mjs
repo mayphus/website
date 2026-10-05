@@ -61,3 +61,12 @@ const ai=JSON.parse(await readFile('dist/ai.json','utf8'));
 if(home.contact_invitation) assert.deepEqual(ai.contact,{email:home.email,invitation:home.contact_invitation});
 assert.ok(html.includes('/four-province-expressway-atlas/'));
 console.log('Human channels passed: HTML negotiation, aliases, HEAD, original text, contact parity and hidden build assets.');
+
+const preview=await worker.fetch(new Request('https://review-mayphus.example.workers.dev/profile/',{headers:{Accept:'text/html'}}),env);
+assert.equal(preview.status,200);
+assert.equal(preview.headers.get('x-mayphus-environment'),'review');
+assert.equal(preview.headers.get('x-robots-tag'),'noindex, nofollow, noarchive');
+assert.equal(preview.headers.get('cache-control'),'no-store');
+const production=await worker.fetch(new Request('https://mayphus.org/profile/',{headers:{Accept:'text/html'}}),env);
+assert.equal(production.headers.get('x-robots-tag'),null);
+console.log('HTML preview retains noindex and no-store; production remains indexable.');

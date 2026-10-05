@@ -26,6 +26,11 @@ export default {
    headers.set('Vary','Accept');
    headers.set('Cache-Control','public, max-age=300');
    headers.set('X-Content-Type-Options','nosniff');
+   if(url.hostname.endsWith('.workers.dev')) {
+    headers.set('Cache-Control','no-store');
+    headers.set('X-Mayphus-Environment','review');
+    headers.set('X-Robots-Tag','noindex, nofollow, noarchive');
+   }
    return new Response(request.method==='HEAD'?null:response.body,{status:response.status,headers});
   }
   const response=await contentWorker.fetch(request,env,ctx);
