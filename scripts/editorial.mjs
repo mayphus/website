@@ -1,3 +1,4 @@
+import {indexTopic,topicSvg} from './index-topics.mjs';
 import {createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import MarkdownIt from 'markdown-it';
@@ -62,7 +63,7 @@ function contentIndex(docs) {
  ]);
  const visible=dated(docs.filter(doc=>doc.url!=='https://mayphus.org/' && doc.metadata?.type!=='capability' && doc.metadata?.kind!=='collection' && !wrappers.has(new URL(doc.url).pathname) && !announcements.has(doc.id)));
  if (!visible.length) return '<p class="empty">No entries are published here yet.</p>';
- return '<ul class="content-index" role="list">'+visible.map(doc=>`<li><span class="outline-mark" aria-hidden="true">*</span><a href="${escape(viewUrl(doc))}">${escape(doc.title)}</a></li>`).join('')+'</ul>';
+ return '<ul class="content-index" role="list">'+visible.map(doc=>{const topic=indexTopic(doc);return `<li><span class="topic-icon" title="${escape(topic.label)}" aria-hidden="true">${topicSvg(topic)}</span><a href="${escape(viewUrl(doc))}" title="${escape(topic.label)}"><span class="sr-only">${escape(topic.label)}: </span>${escape(doc.title)}</a></li>`;}).join('')+'</ul>';
 }
 export function renderHome(home,docs) {
  return shell({title:home.title,description:home.description,home,root:true,body:`<section class="hero"><h1>${escape(home.introduction)}</h1><p>${escape(home.background)}</p></section><section class="index-section" aria-label="Content index">${contentIndex(docs)}</section>`});

@@ -47,7 +47,8 @@ test('homepage presents one index without category navigation or divider rows',(
  assert.ok(!html.includes('<ol class="content-index"'));
  assert.ok(html.indexOf('href="/example/"')<html.indexOf('href="/notes/old/"'));
  assert.ok(!html.includes('<time'));
- assert.equal((html.match(/class="outline-mark" aria-hidden="true">\*/g)||[]).length,2);
+ assert.equal((html.match(/class="topic-icon"/g)||[]).length,2);
+ assert.ok(html.includes('<span class="sr-only">Article: </span>'));
  assert.match(stylesheetPath,/^\/landing\.[a-f0-9]{16}\.css$/);
  assert.ok(html.includes(`href="${stylesheetPath}"`));
  assert.equal(records[1].metadata.date,'2026-01-01');
@@ -74,4 +75,23 @@ test('shared disclosure appears once in human views without modifying source rec
  assert.ok(!html.includes(home.email));
  assert.ok(!html.includes('mailto:'));
  assert.equal((renderHome(home,[explanation]).match(/href="\/about-this-content\/"/g)||[]).length,1);
+});
+
+
+import {indexTopic} from './index-topics.mjs';
+test('index topics use canonical tags before broad topics and never guess from titles',()=>{
+ const category=metadata=>indexTopic({...doc,metadata});
+ assert.equal(category({tags:['photography','camera']}).key,'photography');
+ assert.equal(category({tags:['maps','software']}).key,'maps-history');
+ assert.equal(category({tags:['hardware','ai']}).key,'hardware');
+ assert.equal(category({tags:['language-models']}).key,'software');
+ assert.equal(category({tags:['chemistry']}).key,'science');
+ assert.equal(category({tags:['language']}).key,'art-language');
+ assert.equal(category({topic:'making'}).label,'Making');
+ assert.equal(category({topic:'life'}).label,'Life');
+ assert.equal(indexTopic({...doc,title:'Camera mathematics Linux',metadata:{type:'note'}}).label,'Note');
+ const html=renderHome(home,[{...doc,metadata:{type:'article',tags:['photography']}}]);
+ assert.ok(html.includes('title="Photography"'));
+ assert.ok(html.includes('<span class="sr-only">Photography: </span>'));
+ assert.ok(html.includes('aria-hidden="true" focusable="false"'));
 });
