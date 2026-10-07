@@ -65,8 +65,25 @@ function contentIndex(docs) {
  if (!visible.length) return '<p class="empty">No entries are published here yet.</p>';
  return '<ul class="content-index" role="list">'+visible.map(doc=>{const topic=indexTopic(doc);return `<li><span class="topic-icon" title="${escape(topic.label)}" aria-hidden="true">${topicSvg(topic)}</span><a href="${escape(viewUrl(doc))}" title="${escape(topic.label)}"><span class="sr-only">${escape(topic.label)}: </span>${escape(doc.title)}</a></li>`;}).join('')+'</ul>';
 }
+export function renderGuide(home,docs) {
+ const guide=home.guide;
+ if(!guide)return '';
+ const records=new Map(docs.map(doc=>[doc.id,doc]));
+ return `<div class="home-guide">${guide.themes.map(theme=>`<section class="guide-theme" aria-labelledby="guide-${escape(theme.id)}"><h2 id="guide-${escape(theme.id)}">${escape(theme.title)}</h2><p class="theme-description">${escape(theme.description)}</p><ul class="guide-links" role="list">${theme.entries.map(entry=>{
+  const doc=records.get(entry.record);
+  if(!doc||doc.metadata?.type==='capability')throw Error(`Missing public guide record: ${entry.record}`);
+  const topic=indexTopic(doc);
+  return `<li><span class="topic-icon" title="${escape(topic.label)}" aria-hidden="true">${topicSvg(topic)}</span><div><a class="guide-title" href="${escape(viewUrl(doc))}" title="${escape(topic.label)}"><span class="sr-only">${escape(topic.label)}: </span>${escape(doc.title)}</a><p>${escape(entry.note)}</p></div></li>`;
+ }).join('')}</ul></section>`).join('')}</div>`;
+}
 export function renderHome(home,docs) {
- return shell({title:home.title,description:home.description,home,root:true,body:`<section class="hero"><h1>${escape(home.introduction)}</h1><p>${escape(home.background)}</p></section><section class="index-section" aria-label="Content index">${contentIndex(docs)}</section>`});
+ const guide=home.guide;
+ const body=guide?`<section class="hero guide-intro"><h1>${escape(home.introduction)}</h1><p>${escape(guide.overview)}</p><a class="index-jump" href="/journal/">${escape(guide.index_label)} <span aria-hidden="true">→</span></a></section>${renderGuide(home,docs)}<p class="guide-more"><a href="/journal/">${escape(guide.index_label)} <span aria-hidden="true">→</span></a></p>`:`<section class="hero"><h1>${escape(home.introduction)}</h1><p>${escape(home.background)}</p></section><section class="index-section" aria-label="Content index">${contentIndex(docs)}</section>`;
+ return shell({title:home.title,description:home.description,home,root:true,body});
+}
+export function renderFullIndex(home,docs,path='/journal/') {
+ const title=home.guide?.index_label || 'All work & notes';
+ return shell({title,description:home.guide?.index_description || home.background,url:'https://mayphus.org'+path,home,body:`<section class="index-intro full-index-intro"><h1>${escape(title)}</h1><p>${escape(home.guide?.index_description || home.background)}</p></section><section class="index-section" aria-label="${escape(title)}">${contentIndex(docs)}</section>`});
 }
 export function renderIndex(home,docs,{title,description,path,current}) {
  return shell({title,description,url:'https://mayphus.org'+path,home,current,body:`<section class="index-intro"><p class="eyebrow">${escape(home.title)} / ${escape(title)}</p><h1>${escape(title)}</h1><p>${escape(description)}</p></section><section class="index-section" aria-label="${escape(title)} entries">${rows(dated(docs),{level:2})}</section>`});
@@ -108,8 +125,8 @@ export async function buildEditorial(home,corpus,catalogs) {
   const hash=new URL(doc.url).hash;
   if(hash)fragments[decodeURIComponent(hash.slice(1))]=route;
  }
- await page('/work/',renderHome(home,docs));
- await page('/journal/',renderHome(home,docs));
+ await page('/work/',renderFullIndex(home,docs,'/work/'));
+ await page('/journal/',renderFullIndex(home,docs));
  await writeFile('dist/human-fragments.json',JSON.stringify(fragments)+'\n');
  await writeFile('.cache/human-routes.json',JSON.stringify(routes)+'\n');
  return routes;

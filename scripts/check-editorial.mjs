@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {renderDocument,renderHome,viewUrl,recordImages,stylesheetPath} from './editorial.mjs';
+import {renderDocument,renderHome,viewUrl,recordImages,stylesheetPath,renderGuide,renderFullIndex} from './editorial.mjs';
 const home={title:'Mayphus',email:'tangmeifa@gmail.com',github:'https://github.com/mayphus',footer:'One content.',introduction:'Build with AI.',background:'Software and systems.',records_description:'Source records.',contact_invitation:'People and their AI agents are welcome.'};
 const doc={id:'note:example',title:'测试 <script>',url:'https://mayphus.org/example/',text_url:'https://mayphus.org/records/example.txt',summary:'A safe & readable record.',metadata:{type:'article',date:'2026-10-05',route:'/example/'},text:'# 测试 <script>\n\n[Bad](javascript:alert(1))\n\n<script>alert(1)</script>\n\n| Column | Value |\n|---|---|\n|中文|123|'};
 test('renders the canonical record safely with semantic reading and contact',()=>{const html=renderDocument(home,doc);assert.ok(html.includes('测试 &lt;script&gt;'));assert.ok(!html.includes('<script>alert'));assert.ok(!html.includes('href="javascript:'));assert.ok(html.includes('class="table-scroll"'));assert.ok(html.includes('mailto:'+home.email));assert.ok(!html.includes('class="reading-end"'));assert.ok(!html.includes('/example/index.txt')); assert.ok(html.includes('name="viewport"'));assert.ok(html.includes('Skip to content'));});
@@ -113,4 +113,24 @@ test('content headers omit date chrome while metadata and prose dates survive',(
    assert.equal(data.datePublished,'2026-10-05');
   }
  }
+});
+
+
+test('editorial guide keeps explicit selections stable while the full index grows',()=>{
+ const selected={...doc,id:'selected',title:'Selected record',metadata:{type:'article',date:'2020-01-01'}};
+ const another={...doc,id:'another',url:'https://mayphus.org/another/',title:'Another record',metadata:{type:'article',date:'2026-10-01'}};
+ const guideHome={...home,guide:{overview:'A stable overview.',index_label:'All work & notes',index_description:'The whole index.',themes:[{id:'systems',title:'Systems',description:'Follow the evidence.',entries:[{record:'selected',note:'A checked starting point.'}]}]}};
+ const before=renderGuide(guideHome,[selected]);
+ assert.equal(renderGuide(guideHome,[another,selected]),before);
+ const html=renderHome(guideHome,[another,selected]);
+ assert.ok(html.includes('A stable overview.'));
+ assert.ok(html.includes('href="/journal/"'));
+ assert.ok(html.includes('Selected record'));
+ assert.ok(!html.includes('Another record'));
+ assert.ok(!html.includes('<time'));
+ const index=renderFullIndex(guideHome,[another,selected]);
+ assert.ok(index.includes('Selected record')&&index.includes('Another record'));
+ assert.ok(!index.includes('A checked starting point.'));
+ assert.throws(()=>renderGuide(guideHome,[]),/Missing public guide record/);
+ assert.ok(renderGuide({...guideHome,guide:{...guideHome.guide,themes:[{...guideHome.guide.themes[0],description:'<script>unsafe</script>'}]}},[selected]).includes('&lt;script&gt;'));
 });

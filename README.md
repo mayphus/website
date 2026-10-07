@@ -68,3 +68,10 @@ extracted from mayphus/mayphus at `2df37f9240b046a27d519e8060d578982b7d27c0`;
 full source history remains there.
 
 Human HTML is generated from the same canonical public records as plain text, JSON/API and RSS. Browser requests with `Accept: text/html` receive HTML at canonical record URLs and aliases; explicit text requests and clients without an HTML preference retain the original text contracts. `/work/` and `/journal/` are generated indexes. Contact metadata stays in the content repository.
+
+The homepage guide is authored in the content repository's `public/homepage.json`.
+Its ordered themes and record IDs are stable editorial selections; rendering never
+reselects or sorts them. Titles and URLs resolve from canonical records. `/journal/`
+and `/work/` retain the complete ungrouped reading index, including new records.
+Do not rotate the guide or regenerate it on routine publication; revise it only for
+an explicit editorial request or a meaningful public project change/milestone.
