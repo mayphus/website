@@ -50,7 +50,12 @@ function shell({title,description,url='https://mayphus.org/',language='en',home,
 function contentIndex(docs) {
  // Keep routes and the complete machine index; omit empty wrappers and duplicate collection indexes from this reading list.
  const wrappers=new Set(['/writing/','/infra/','/agents/','/chat/','/daily/','/diet/','/job-hunter/','/status/','/demo/']);
- const announcements=new Set(['page:/entries/x-2060192582706344390/','page:/entries/x-2062104590410260679/','note:openlens-local-first-camera','note:ai-native-website-interfaces']);
+ const announcements=new Set([
+  'page:/entries/x-2060192582706344390/','page:/entries/x-2062104590410260679/',
+  'note:openlens-local-first-camera','note:ai-native-website-interfaces',
+  'note:electronic-learning-book-repair','note:nanopi-r2s-alpine-boot','note:how-i-work-with-ai',
+  'note:nano-pi-teardown','note:router-service-recovery','note:sugar-from-a-soldier',
+ ]);
  const visible=dated(docs.filter(doc=>doc.url!=='https://mayphus.org/' && doc.metadata?.type!=='capability' && doc.metadata?.kind!=='collection' && !wrappers.has(new URL(doc.url).pathname) && !announcements.has(doc.id)));
  if (!visible.length) return '<p class="empty">No entries are published here yet.</p>';
  return '<ol class="content-index">'+visible.map(doc=>`<li><a href="${escape(viewUrl(doc))}">${escape(doc.title)}</a>${doc.metadata?.date?`<time datetime="${escape(doc.metadata.date)}">${escape(dateLabel(doc.metadata.date))}</time>`:''}</li>`).join('')+'</ol>';
