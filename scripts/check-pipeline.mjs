@@ -86,7 +86,7 @@ const otherDeployment = 'c231176a-128f-471c-a401-baa23ebd91af';
 const otherVersion = '67a016f4-814a-456e-94b0-37a2a076af00';
 const successful = {status:'verified',website:first,content:newest,assets:'c'.repeat(64),deployment:deploymentId,version:productionVersion};
 const deployed = {id:deploymentId,versions:[{version_id:productionVersion,percentage:100}]};
-const versionMetadata = {id:productionVersion,metadata:{has_preview:true},annotations:{'workers/alias':'review','workers/tag':'commit-aaaaaaaaaaaa','workers/message':'review commit-aaaaaaaaaaaa','workers/triggered_by':'version_upload'}};
+const versionMetadata = {id:productionVersion,annotations:{'workers/tag':'commit-aaaaaaaaaaaa','workers/message':'review commit-aaaaaaaaaaaa','workers/triggered_by':'version_upload'}};
 const reuseOptions = {website:first,content:newest,readWebsiteMain:async () => first,readContentMain:async () => newest,readSuccess:async () => successful,readProduction:async () => deployed,readVersion:async () => versionMetadata};
 test('unchanged sources skip only with a verified receipt matching current production', async () => {
  assert.equal(await canReuseProduction(reuseOptions),true);
@@ -150,7 +150,7 @@ test('content moving after review, dirty checkout or different bytes cannot prom
  verifyContentMain(first,valid);
  for (const changes of [{head:newest},{status:' M private.md'},{remote:newest}]) assert.throws(() => verifyContentMain(first,{...valid,...changes}));
 });
-test('promotion checks both mains before and after preview and never deploys stale sources', async () => {
+test('promotion checks both mains before and after version review and never deploys stale sources', async () => {
  for (const moved of ['neither','website','content']) {
   let reviewed=false;
   const calls=[];
@@ -160,16 +160,15 @@ test('promotion checks both mains before and after preview and never deploys sta
     verifySource('main','',first,reviewed && moved === 'website' ? newest : first);
     verifyContentMain(first,{head:first,status:'',remote:reviewed && moved === 'content' ? newest : first});
    },
-   checkVersion:()=>calls.push('version'),
-   checkPreview:()=>{calls.push('preview');reviewed=true;},
+   checkVersion:()=>{calls.push('version');reviewed=true;},
    deployVersion:()=>calls.push('deploy'),deployTriggers:()=>calls.push('triggers'),checkProduction:()=>calls.push('production'),
   };
   if (moved === 'neither') {
    await promoteReviewed(options);
-   assert.deepEqual(calls,['sources','version','preview','sources','deploy','triggers','production']);
+   assert.deepEqual(calls,['sources','version','sources','deploy','triggers','production']);
   } else {
    await assert.rejects(promoteReviewed(options));
-   assert.deepEqual(calls,['sources','version','preview','sources']);
+   assert.deepEqual(calls,['sources','version','sources']);
   }
  }
 });

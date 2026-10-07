@@ -12,8 +12,6 @@ const receipt='.cache/review.json';
 export function verifyVersion(version,id,commit){
  const tag=`commit-${commit.slice(0,12)}`;
  assert.equal(version.id,id);
- assert.equal(version.metadata?.has_preview,true);
- assert.equal(version.annotations?.['workers/alias'],'review');
  assert.equal(version.annotations?.['workers/tag'],tag);
  assert.equal(version.annotations?.['workers/message'],`review ${tag}`);
  assert.equal(version.annotations?.['workers/triggered_by'],'version_upload');
@@ -23,10 +21,9 @@ export function verifySource(branch,status,head,remote){
  assert.equal(status,'','Production requires a clean checkout');
  assert.match(head,/^[a-f0-9]{40}$/);assert.equal(head,remote,'Main moved; review the new commit');
 }
-export async function promoteReviewed({checkSources,checkVersion,checkPreview,deployVersion,deployTriggers,checkProduction}) {
+export async function promoteReviewed({checkSources,checkVersion,deployVersion,deployTriggers,checkProduction}) {
  await checkSources();
  await checkVersion();
- await checkPreview();
  await checkSources();
  await deployVersion();
  await deployTriggers();
@@ -43,24 +40,22 @@ async function assetHash(){
 async function main(){
  const [command,id]=process.argv.slice(2);
  if(!['review','ship'].includes(command))throw new Error('Usage: node scripts/deploy.mjs review | ship VERSION');
+ assert.equal(JSON.parse(await readFile('wrangler.jsonc','utf8')).preview_urls,false,'Public Version URLs must stay disabled');
  assert.equal(git('status','--porcelain'),'','Release requires a clean checkout');
  assert.ok(!process.env.MAYPHUS_CONTENT_DIR,'Release must use trusted GitHub main content');
  const commit=git('rev-parse','HEAD');
  const tag=`commit-${commit.slice(0,12)}`;
  if(command==='review'){
   run('npm',['run','check'],true);
-  const output=wrangler('versions','upload','-c','wrangler.jsonc','--preview-alias','review','--tag',tag,'--message',`review ${tag}`,'--strict');
+  const output=wrangler('versions','upload','-c','wrangler.jsonc','--tag',tag,'--message',`review ${tag}`,'--strict');
   console.log(output);
   const version=output.match(/Worker Version ID:\s+([a-f0-9-]{36})/)?.[1];
-  const url=output.match(/Version Preview URL:\s+(https:\/\/\S+)/)?.[1];
   assert.match(version||'',/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/);
-  assert.match(url||'',/^https:\/\/[a-f0-9]+-mayphus\.mayphus\.workers\.dev\/?$/);
   verifyVersion(JSON.parse(wrangler('versions','view',version,'-c','wrangler.jsonc','--json')),version,commit);
-  run(process.execPath,['scripts/check-cloud-live.mjs',url],true);
   await mkdir('.cache',{recursive:true});
   const {contentCommit:content} = JSON.parse(await readFile('.cache/build.json','utf8'));
-  await writeFile(receipt,JSON.stringify({commit,content,version,url,assets:await assetHash()}));
-  console.log(`Review version: ${version}\nReview URL: ${url}`);
+  await writeFile(receipt,JSON.stringify({commit,content,version,assets:await assetHash()}));
+  console.log(`Reviewed version: ${version}; public Version URLs are disabled.`);
  }else{
   assert.match(id||'',/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/);
   const reviewed=JSON.parse(await readFile(receipt,'utf8'));
@@ -73,7 +68,6 @@ async function main(){
   await promoteReviewed({
    checkSources:checkMain,
    checkVersion:()=>verifyVersion(JSON.parse(wrangler('versions','view',id,'-c','wrangler.jsonc','--json')),id,commit),
-   checkPreview:()=>run(process.execPath,['scripts/check-cloud-live.mjs',reviewed.url],true),
    deployVersion:()=>console.log(wrangler('versions','deploy',`${id}@100%`,'-c','wrangler.jsonc','--message',`production ${id} from ${tag}`,'--yes')),
    deployTriggers:()=>console.log(wrangler('triggers','deploy','-c','wrangler.jsonc')),
    checkProduction:()=>run(process.execPath,['scripts/check-cloud-live.mjs','https://mayphus.org'],true),
