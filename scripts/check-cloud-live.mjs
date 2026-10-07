@@ -3,6 +3,7 @@ import {readFile} from 'node:fs/promises';
 import {setTimeout as delay} from 'node:timers/promises';
 import {randomUUID} from 'node:crypto';
 import {typingOwner, verifyTextPage, verifyInputFoundry} from './live-contracts.mjs';
+import {stylesheetPath} from './editorial.mjs';
 import {canonicalHtml} from './html-contract.mjs';
 const base = process.argv[2];
 assert.match(base, /^https:\/\//);
@@ -30,6 +31,7 @@ for (let attempt = 0; ; attempt++) {
   await delay(5000);
  }
 }
+assert.equal(await (await get(stylesheetPath)).text(),await readFile('dist'+stylesheetPath,'utf8'),'Versioned CSS must match the reviewed build');
 const humanRoutes=JSON.parse(await readFile('.cache/human-routes.json','utf8'));
 for(const route of ['/profile/','/four-province-expressway-atlas/','/work/','/journal/']) {
  for(let attempt=0;;attempt++) {

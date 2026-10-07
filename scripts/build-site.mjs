@@ -5,7 +5,7 @@ import {fileURLToPath} from 'node:url';
 import {build} from 'esbuild';
 import {contentSource} from './content-source.mjs';
 import {render} from './render.mjs';
-import {buildEditorial} from './editorial.mjs';
+import {buildEditorial,stylesheetPath} from './editorial.mjs';
 export async function buildSite({checkContent=false}={}) {
  const {source,commit} = await contentSource();
  execFileSync('npm',['run',checkContent ? 'check' : 'build'],{cwd:source,stdio:'inherit'});
@@ -18,6 +18,7 @@ export async function buildSite({checkContent=false}={}) {
   catch (error) { if (error.code !== 'ENOENT') throw error; }
  }
  await cp('public','dist',{recursive:true});
+ await cp('public/landing.css','dist'+stylesheetPath);
  await writeFile('dist/index.html',render(await readFile('public/index.html','utf8'),content));
  await mkdir('.cache',{recursive:true});
  // Validate the unchanged AI export before adding browser-only generated views.
