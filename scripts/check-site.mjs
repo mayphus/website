@@ -38,7 +38,7 @@ console.log('Deployment bundle passed: homepage, health, search, MCP and privacy
 
 const routes=JSON.parse(await readFile('.cache/human-routes.json','utf8'));
 const docs=JSON.parse(await readFile('dist/documents.json','utf8')).documents;
-for(const route of ['/profile/','/four-province-expressway-atlas/','/work/','/journal/']) {
+for(const route of ['/profile/','/four-province-expressway-atlas/','/about-this-content/','/work/','/journal/']) {
  const expected=await readFile('dist'+routes[route],'utf8');
  for(const path of [route,route+'index.html']) {
   const response=await worker.fetch(new Request('https://mayphus.org'+path,{headers:{Accept:'text/html'}}),env);
@@ -47,7 +47,7 @@ for(const route of ['/profile/','/four-province-expressway-atlas/','/work/','/jo
  const head=await worker.fetch(new Request('https://mayphus.org'+route,{method:'HEAD',headers:{Accept:'text/html'}}),env);
  assert.equal(head.status,200);assert.equal(await head.text(),'');
 }
-for(const route of ['/profile/','/four-province-expressway-atlas/']) {
+for(const route of ['/profile/','/four-province-expressway-atlas/','/about-this-content/']) {
  const text=await readFile('dist'+route+'index.txt','utf8');
  for(const accept of ['', '*/*','text/plain','text/html;q=0','text/plain;q=1,text/html;q=.5']) {
   const response=await worker.fetch(new Request('https://mayphus.org'+route,{headers:{Accept:accept}}),env);
@@ -70,3 +70,20 @@ assert.equal(preview.headers.get('cache-control'),'no-store');
 const production=await worker.fetch(new Request('https://mayphus.org/profile/',{headers:{Accept:'text/html'}}),env);
 assert.equal(production.headers.get('x-robots-tag'),null);
 console.log('HTML preview retains noindex and no-store; production remains indexable.');
+
+const disclosureLabel='Human work. AI-assisted words.';
+for(const document of docs) {
+ if(new URL(document.url).pathname!=='/about-this-content/') {
+  assert.ok(!document.text.includes(disclosureLabel),'No disclosure footers in machine records');
+ }
+}
+for(const route of Object.keys(routes)) {
+ const human=await readFile('dist'+routes[route],'utf8');
+ assert.equal((human.match(/href="\/about-this-content\/"/g)||[]).length,1,route);
+}
+const explanation=docs.find(document=>new URL(document.url).pathname==='/about-this-content/');
+assert.ok(explanation.text.includes('Based on my real work, experiments and observations. AI helps turn them into published content. Claims should be judged by their evidence; corrections are welcome.'));
+const explanationHtml=await readFile('dist'+routes['/about-this-content/'],'utf8');
+assert.ok(!explanationHtml.includes('mailto:'));
+assert.ok(!explanationHtml.includes(home.email));
+console.log('Disclosure passed: canonical provenance, one HTML link per page, no per-record machine footers or new contact details.');

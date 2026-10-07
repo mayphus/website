@@ -52,3 +52,19 @@ test('homepage presents one index without category navigation or divider rows',(
  assert.ok(!html.includes('<nav aria-label="Main navigation">'));
  assert.ok(!html.includes('<hr'));
 });
+
+
+test('shared disclosure appears once in human views without modifying source records',()=>{
+ const before=JSON.stringify(doc);
+ for(const html of [renderHome(home,[doc]),renderDocument(home,doc)]) {
+  assert.equal((html.match(/href="\/about-this-content\/"/g)||[]).length,1);
+  assert.ok(html.includes('>Human work. AI-assisted words.</a>'));
+ }
+ assert.equal(JSON.stringify(doc),before);
+ const explanation={...doc,title:'About this content',url:'https://mayphus.org/about-this-content/',summary:'About this content',text:'Based on my real work, experiments and observations. AI helps turn them into published content. Claims should be judged by their evidence; corrections are welcome.'};
+ const html=renderDocument(home,explanation);
+ assert.ok(html.includes(explanation.text));
+ assert.ok(!html.includes(home.email));
+ assert.ok(!html.includes('mailto:'));
+ assert.equal((renderHome(home,[explanation]).match(/href="\/about-this-content\/"/g)||[]).length,1);
+});
