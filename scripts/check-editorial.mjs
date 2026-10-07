@@ -7,7 +7,7 @@ test('renders the canonical record safely with semantic reading and contact',()=
 test('renders empty indexes and encoded fragment routes without new content',()=>{assert.ok(renderHome(home,[],[]).includes('No entries are published'));assert.equal(viewUrl({...doc,url:'https://mayphus.org/#old-note'}),'/notes/old-note/');assert.throws(()=>renderDocument({...home,email:'bad"@email'},doc),/contact email/);});
 
 // Production analytics may add only its exact known prefix; all other bytes remain checked.
-import {canonicalHtml, productionAnalytics, productionBeacon} from './html-contract.mjs';
+import {canonicalHtml, productionAnalytics, productionBeacon, productionBeaconCurrent} from './html-contract.mjs';
 test('HTML comparison accepts only the existing production analytics insertion',()=>{
  const expected='<head><meta charset="utf-8"></head><body>reviewed</body>';
  const actual=expected.replace('<head>','<head>'+productionAnalytics).replace('</body>',productionBeacon+'</body>');
@@ -16,6 +16,16 @@ test('HTML comparison accepts only the existing production analytics insertion',
  assert.equal(canonicalHtml(actual,'https://abc-mayphus.mayphus.workers.dev'),actual);
  assert.notEqual(canonicalHtml(actual.replace('reviewed','stale'),'https://mayphus.org'),expected);
  assert.notEqual(canonicalHtml(actual.replace('/analytics/','/unexpected/'),'https://mayphus.org'),expected);
+});
+
+test('HTML comparison recognizes the exact updated edge beacon and rejects modified variants',()=>{
+ const expected='<head></head><body>reviewed</body></html>';
+ for(const beacon of [productionBeacon,productionBeaconCurrent]) {
+  const actual=expected.replace('</body>',beacon+'</body>');
+  assert.equal(canonicalHtml(actual,'https://mayphus.org'),expected);
+  assert.equal(canonicalHtml(actual,'https://preview.workers.dev'),actual);
+  for(const changed of [actual.replace('reviewed','stale'),actual.replace('sha512-','sha256-'),actual.replace('"spa":2','"spa":3'),actual.replace('beacon.min.js/','unknown.js/')]) assert.notEqual(canonicalHtml(changed,'https://mayphus.org'),expected);
+ }
 });
 
 test('record gallery uses only existing same-site photos without extra related links',()=>{
