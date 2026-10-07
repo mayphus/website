@@ -25,42 +25,40 @@ export function recordImages(doc) {
  }
  return [...found.values()];
 }
-function photograph(doc,{lead=false}={}) {
- const photo=recordImages(doc)[0];
- return photo?`<figure class="notebook-photo"><a href="${escape(viewUrl(doc))}" tabindex="-1" aria-hidden="true"><img src="${escape(photo.url)}" alt="" ${lead?'fetchpriority="high"':'loading="lazy"'} decoding="async"></a><figcaption>${escape(photo.caption)}</figcaption></figure>`:'';
-}
-function connections(doc,docs) {
- const tags=new Set(doc.metadata?.tags || []);
- return docs.filter(d=>d.id!==doc.id && viewUrl(d)!==viewUrl(doc) && d.metadata?.type!=='capability').map(d=>({doc:d,score:(d.metadata?.tags || []).filter(t=>tags.has(t)).length+(doc.metadata?.topic && d.metadata?.topic===doc.metadata.topic?1:0)})).filter(d=>d.score>0).sort((a,b)=>b.score-a.score || a.doc.title.localeCompare(b.doc.title)).slice(0,3).map(d=>d.doc);
-}
-function rows(docs,{numbers=false,level=3}={}) {
+function rows(docs,{level=3}={}) {
  if (!docs.length) return '<p class="empty">No entries are published here yet.</p>';
- return '<ol class="entry-list">'+docs.map((doc,i)=>`<li class="entry"><div class="entry-meta">${numbers?`<span class="index" aria-hidden="true">↳</span>`:''}<span>${escape(kind(doc))}</span>${doc.metadata?.date?`<time datetime="${escape(doc.metadata.date)}">${escape(dateLabel(doc.metadata.date))}</time>`:''}</div><div class="entry-copy"><h${level}><a href="${escape(viewUrl(doc))}">${escape(doc.title)}<span aria-hidden="true"> ↗</span></a></h${level}><p>${escape(plain(doc.summary))}</p>${doc.metadata?.tags?.length?`<p class="tags">${doc.metadata.tags.map(escape).join(' · ')}</p>`:''}</div></li>`).join('')+'</ol>';
+ return '<ol class="entry-list">'+docs.map(doc=>`<li class="entry"><div class="entry-meta"><span>${escape(kind(doc))}</span>${doc.metadata?.date?`<time datetime="${escape(doc.metadata.date)}">${escape(dateLabel(doc.metadata.date))}</time>`:''}</div><div class="entry-copy"><h${level}><a href="${escape(viewUrl(doc))}">${escape(doc.title)}</a></h${level}><p>${escape(plain(doc.summary))}</p></div></li>`).join('')+'</ol>';
+}
+function curatedPhotoGallery(text) {
+ const pairs=/([^()]*)\((https:\/\/mayphus\.org\/media\/[^)]+\.(?:png|jpe?g|webp))\)\s+\(\2\)/gi;
+ const photos=[];
+ for (const match of text.matchAll(pairs)) {
+  const caption=match[1].trim().split("\n").at(-1).trim();
+  if (!caption || /^Photo \d+ attached|^Screenshot from/i.test(caption)) continue;
+  photos.push({caption,url:match[2]});
+  if (photos.length===6) break;
+ }
+ return photos;
 }
 function shell({title,description,url='https://mayphus.org/',language='en',home,current='',body,article=false,date='',root=false}) {
  if(!/^https:\/\/github\.com\/[A-Za-z0-9_-]+\/?$/.test(home.github))throw Error('Invalid canonical GitHub URL');
- const invitation=home.contact_invitation || '';
  const email=home.email;
  if(!/^[^\s<>"'@]+@[^\s<>"'@]+\.[^\s<>"'@]+$/.test(email))throw Error('Invalid canonical contact email');
  const structured={'@context':'https://schema.org','@type':article?'Article':'WebPage',name:title,url,description,...(article?{headline:title,author:{'@type':'Person',name:home.title},...(date?{datePublished:date}:{})}:{})};
- return `<!doctype html><html lang="${escape(language)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(title)}${title===home.title?'':` — ${escape(home.title)}`}</title><meta name="description" content="${escape(plain(description).slice(0,300))}"><link rel="canonical" href="${escape(url)}"><meta property="og:title" content="${escape(title)}"><meta property="og:description" content="${escape(plain(description).slice(0,300))}"><meta property="og:url" content="${escape(url)}"><meta property="og:type" content="${article?'article':'website'}"><link rel="stylesheet" href="/landing.css"><link rel="alternate" type="application/rss+xml" href="/rss.xml" title="Mayphus updates"><link rel="alternate" type="application/json" href="/agent-index.json" title="AI-readable content index"><script type="application/ld+json">${JSON.stringify(structured).replaceAll('<','\\u003c')}</script></head><body><a class="skip-link" href="#main">Skip to content</a><header class="site-header"><a class="brand" href="/" aria-label="Mayphus home"><span class="brand-mark" aria-hidden="true"></span>${escape(home.title)}</a><nav aria-label="Main navigation">${[['Work','/work/'],['Writing','/journal/'],['About','/profile/'],['Contact','/#contact']].map(([label,path])=>`<a href="${path}"${current===label?' aria-current="page"':''}>${label}</a>`).join('')}</nav></header><main id="main">${body}</main><footer class="site-footer" id="contact"><div class="contact"><p class="eyebrow">An open conversation</p><h2>Let’s talk.</h2>${invitation?`<p>${escape(invitation)}</p>`:''}<a class="email-link" href="mailto:${escape(email)}">${escape(email)} <span aria-hidden="true">↗</span></a></div><div class="footer-meta"><p>${escape(home.footer)}</p><nav aria-label="Other ways to read"><a href="/llms.txt">For AI agents</a><a href="/agent-index.json">Content index</a><a href="/rss.xml">RSS</a><a href="${escape(home.github)}">GitHub</a></nav></div></footer>${root?'<script src="/fragments.js" defer></script>':''}</body></html>`;
+ return `<!doctype html><html lang="${escape(language)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(title)}${title===home.title?'':` — ${escape(home.title)}`}</title><meta name="description" content="${escape(plain(description).slice(0,300))}"><link rel="canonical" href="${escape(url)}"><meta property="og:title" content="${escape(title)}"><meta property="og:description" content="${escape(plain(description).slice(0,300))}"><meta property="og:url" content="${escape(url)}"><meta property="og:type" content="${article?'article':'website'}"><link rel="stylesheet" href="/landing.css"><link rel="alternate" type="application/rss+xml" href="/rss.xml" title="Mayphus updates"><link rel="alternate" type="application/json" href="/agent-index.json" title="AI-readable content index"><script type="application/ld+json">${JSON.stringify(structured).replaceAll('<','\\u003c')}</script></head><body><a class="skip-link" href="#main">Skip to content</a><header class="site-header"><a class="brand" href="/" aria-label="Mayphus home"><span class="brand-mark" aria-hidden="true"></span>${escape(home.title)}</a><nav aria-label="Main navigation">${[['Work','/work/'],['Writing','/journal/'],['About','/profile/'],['Contact','/#contact']].map(([label,path])=>`<a href="${path}"${current===label?' aria-current="page"':''}>${label}</a>`).join('')}</nav></header><main id="main">${body}</main><footer class="site-footer" id="contact"><a class="email-link" href="mailto:${escape(email)}">${escape(email)}</a></footer>${root?'<script src="/fragments.js" defer></script>':''}</body></html>`;
 }
 export function renderHome(home,docs,projects) {
- const articles=dated(docs.filter(d=>d.metadata?.type==='article'));
- const recent=articles.slice(0,4);
+ const recent=dated(docs.filter(d=>d.metadata?.type==='article')).slice(0,5);
  const work=dated(projects.filter(d=>d.metadata?.type==='project')).slice(0,4);
- const notes=dated(docs.filter(d=>d.metadata?.type==='note' && d.metadata?.date));
- const pictured=notes.find(d=>d.metadata?.topic==='making' && recordImages(d).length) || notes.find(d=>recordImages(d).length);
- const notebook=notes.filter(d=>d.id!==pictured?.id && ![...recent,...work].some(shown=>shown.title===d.title)).slice(0,3);
- return shell({title:home.title,description:home.description,home,root:true,body:`<section class="hero"><p class="eyebrow">A field notebook</p><h1>${escape(home.introduction)}</h1><div class="hero-bottom"><p>${escape(home.background)}</p><a class="text-link" href="/work/">Explore the work <span aria-hidden="true">↗</span></a></div></section>${pictured?`<section class="notebook-feature" aria-label="From the notebook">${photograph(pictured,{lead:true})}<div class="feature-copy"><p class="eyebrow">From the notebook${pictured.metadata?.date?` · ${escape(dateLabel(pictured.metadata.date))}`:''}</p><h2><a href="${escape(viewUrl(pictured))}">${escape(pictured.title)}</a></h2><p>${escape(plain(pictured.summary===pictured.title?(pictured.text.split('\n\n').find(p=>p.length>150)||pictured.summary).slice(0,260).replace(/\s+\S*$/,'')+'…':pictured.summary))}</p><a class="text-link" href="${escape(viewUrl(pictured))}">Open this note →</a></div></section>`:''}<section class="index-section" aria-labelledby="latest-heading"><div class="section-heading"><h2 id="latest-heading">Recent pages</h2><a href="/journal/">All writing <span aria-hidden="true">↗</span></a></div>${rows(recent)}</section><section class="index-section" aria-labelledby="work-heading"><div class="section-heading"><h2 id="work-heading">On the workbench</h2><a href="/work/">All work <span aria-hidden="true">↗</span></a></div><div class="project-grid">${rows(work,{numbers:true})}</div></section><section class="index-section" aria-labelledby="notes-heading"><div class="section-heading"><h2 id="notes-heading">Notes along the way</h2><a href="/journal/">Browse the notebook →</a></div>${rows(notebook)}</section><aside class="shared-source"><span class="eyebrow">One content, different ways to read</span><p>${escape(home.records_description)}</p><a href="/agents/">Explore with your AI agent <span aria-hidden="true">↗</span></a></aside>`});
+ return shell({title:home.title,description:home.description,home,root:true,body:`<section class="hero"><p class="eyebrow">A field notebook</p><h1>${escape(home.introduction)}</h1><p>${escape(home.background)}</p></section><section class="index-section" aria-labelledby="latest-heading"><div class="section-heading"><h2 id="latest-heading">Writing</h2><a href="/journal/">View all</a></div>${rows(recent)}</section><section class="index-section" aria-labelledby="work-heading"><div class="section-heading"><h2 id="work-heading">Work</h2><a href="/work/">View all</a></div>${rows(work)}</section>`});
 }
 export function renderIndex(home,docs,{title,description,path,current}) {
- return shell({title,description,url:'https://mayphus.org'+path,home,current,body:`<section class="index-intro"><p class="eyebrow">${escape(home.title)} / ${escape(title)}</p><h1>${escape(title)}</h1><p>${escape(description)}</p></section><section class="index-section" aria-label="${escape(title)} entries">${rows(dated(docs),{numbers:true,level:2})}</section>`});
+ return shell({title,description,url:'https://mayphus.org'+path,home,current,body:`<section class="index-intro"><p class="eyebrow">${escape(home.title)} / ${escape(title)}</p><h1>${escape(title)}</h1><p>${escape(description)}</p></section><section class="index-section" aria-label="${escape(title)} entries">${rows(dated(docs),{level:2})}</section>`});
 }
 export function renderDocument(home,doc,docs=[]) {
- const related=connections(doc,docs);
- const images=recordImages(doc).slice(0,6);
- let text=doc.text;
+ const gallery=doc.id==='page:/photos/';
+ const images=gallery?curatedPhotoGallery(doc.text):recordImages(doc).slice(0,6);
+ let text=gallery?'':doc.text;
  // The title is still displayed exactly once in the semantic page header.
  const lines=text.split('\n');
  if (lines[0].replace(/^#\s+/,'').trim()===doc.title.trim()) text=lines.slice(1).join('\n').trimStart();
@@ -74,8 +72,7 @@ export function renderDocument(home,doc,docs=[]) {
  }).join('\n');
  const article=doc.metadata?.type==='article';
  const current=article?'Writing':doc.metadata?.type==='project'?'Work':doc.url.includes('/profile/')?'About':'';
- const textUrl=doc.metadata?.route ? doc.metadata.route+'index.txt' : new URL(doc.text_url).pathname;
- return shell({title:doc.title,description:doc.summary,url:doc.url,language:doc.metadata?.language || 'en',home,current,article,date:doc.metadata?.date,body:`<article class="reading" data-record-id="${escape(doc.id)}"><header class="reading-header"><a class="back-link" href="${current==='Work'?'/work/':'/journal/'}">← ${current==='Work'?'All work':'All writing'}</a><p class="eyebrow">${escape(kind(doc))}${doc.metadata?.date?` <span aria-hidden="true">/</span> <time datetime="${escape(doc.metadata.date)}">${escape(dateLabel(doc.metadata.date))}</time>`:''}</p><h1>${escape(doc.title)}</h1>${doc.summary!==doc.title?`<p class="standfirst">${escape(plain(doc.summary))}</p>`:''}<a class="source-link" href="${escape(textUrl)}">Read as plain text ↗</a></header><div class="prose">${markdown.render(text)}</div>${images.length?`<section class="record-gallery" aria-label="Images from this record">${images.map(photo=>`<figure><a href="${escape(photo.url)}"><img src="${escape(photo.url)}" alt="${escape(photo.caption)}" loading="lazy" decoding="async"></a><figcaption>${escape(photo.caption)}</figcaption></figure>`).join('')}</section>`:''}${related.length?`<aside class="related"><p class="eyebrow">Connected by topic</p><h2>Keep following the thread</h2>${rows(related)}</aside>`:''}<div class="reading-end"><a href="${escape(textUrl)}">Plain text</a><a href="/api/document?id=${encodeURIComponent(doc.id)}">Same record as JSON</a><a href="/journal/">More writing ↗</a></div></article>`});
+ return shell({title:doc.title,description:doc.summary,url:doc.url,language:doc.metadata?.language || 'en',home,current,article,date:doc.metadata?.date,body:`<article class="reading" data-record-id="${escape(doc.id)}"><header class="reading-header"><p class="eyebrow">${escape(kind(doc))}${doc.metadata?.date?` <span aria-hidden="true">/</span> <time datetime="${escape(doc.metadata.date)}">${escape(dateLabel(doc.metadata.date))}</time>`:''}</p><h1>${escape(doc.title)}</h1>${doc.summary!==doc.title?`<p class="standfirst">${escape(plain(doc.summary))}</p>`:''}</header><div class="prose">${markdown.render(text)}</div>${images.length?`<section class="record-gallery" aria-label="Images from this record">${images.map(photo=>`<figure><a href="${escape(photo.url)}"><img src="${escape(photo.url)}" alt="${escape(photo.caption)}" loading="lazy" decoding="async"></a><figcaption>${escape(photo.caption)}</figcaption></figure>`).join('')}</section>`:''}</article>`});
 }
 export async function buildEditorial(home,corpus,catalogs) {
  const docs=corpus.documents;

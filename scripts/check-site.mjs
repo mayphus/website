@@ -56,7 +56,7 @@ for(const route of ['/profile/','/four-province-expressway-atlas/']) {
 }
 assert.equal((await get(Object.values(routes)[0])).status,404);
 const home=JSON.parse(await readFile('dist/homepage.json','utf8'));
-if(home.contact_invitation) assert.ok(html.includes(home.contact_invitation));
+assert.ok(html.includes('mailto:'+home.email));
 const ai=JSON.parse(await readFile('dist/ai.json','utf8'));
 if(home.contact_invitation) assert.deepEqual(ai.contact,{email:home.email,invitation:home.contact_invitation});
 assert.ok(html.includes('/four-province-expressway-atlas/'));
