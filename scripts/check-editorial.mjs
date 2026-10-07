@@ -43,7 +43,11 @@ test('photo index shows a curated gallery without dumping source URLs',()=>{
 test('homepage presents one index without category navigation or divider rows',()=>{
  const records=[doc,{...doc,id:'note:old',title:'An older note',url:'https://mayphus.org/#old',metadata:{type:'note',date:'2026-01-01'}},{...doc,id:'page:/writing/',title:'Writing',url:'https://mayphus.org/writing/',metadata:{type:'page'}},{...doc,id:'page:/collection/',title:'Collection',url:'https://mayphus.org/collection/',metadata:{type:'page',kind:'collection'}},{...doc,id:'page:/chat/',title:'Chat',url:'https://mayphus.org/chat/',metadata:{type:'page',kind:'tool'}}];
  const html=renderHome(home,records,[]);
- assert.equal((html.match(/<ol class="content-index">/g)||[]).length,1);
+ assert.equal((html.match(/<ul class="content-index" role="list">/g)||[]).length,1);
+ assert.ok(!html.includes('<ol class="content-index"'));
+ assert.ok(html.indexOf('href="/example/"')<html.indexOf('href="/notes/old/"'));
+ assert.ok(!html.includes('<time'));
+ assert.equal(records[1].metadata.date,'2026-01-01');
  assert.ok(html.includes('href="/example/"'));
  assert.ok(html.includes('href="/notes/old/"'));
  assert.ok(!html.includes('href="/writing/"'));
