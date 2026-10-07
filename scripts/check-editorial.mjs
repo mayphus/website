@@ -95,3 +95,22 @@ test('index topics use canonical tags before broad topics and never guess from t
  assert.ok(html.includes('<span class="sr-only">Photography: </span>'));
  assert.ok(html.includes('aria-hidden="true" focusable="false"'));
 });
+
+
+test('content headers omit date chrome while metadata and prose dates survive',()=>{
+ for(const type of ['article','note']) {
+  const record={...doc,text:'Experiment observed on 2026-10-05 at 14:30 UTC.',metadata:{...doc.metadata,type}};
+  const before=JSON.stringify(record);
+  const html=renderDocument(home,record);
+  const header=html.match(/<header class="reading-header">(.*?)<\/header>/s)[1];
+  assert.ok(!header.includes('<time'));
+  assert.ok(!header.includes('2026-10-05'));
+  assert.ok(!header.includes('eyebrow'));
+  assert.ok(html.includes('<p>Experiment observed on 2026-10-05 at 14:30 UTC.</p>'));
+  assert.equal(JSON.stringify(record),before);
+  if(type==='article') {
+   const data=JSON.parse(html.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)[1]);
+   assert.equal(data.datePublished,'2026-10-05');
+  }
+ }
+});
