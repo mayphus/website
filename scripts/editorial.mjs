@@ -50,7 +50,8 @@ function shell({title,description,url='https://mayphus.org/',language='en',home,
 function contentIndex(docs) {
  // Keep routes and the complete machine index; omit empty wrappers and duplicate collection indexes from this reading list.
  const wrappers=new Set(['/writing/','/infra/','/agents/','/chat/','/daily/','/diet/','/job-hunter/','/status/','/demo/']);
- const visible=dated(docs.filter(doc=>doc.url!=='https://mayphus.org/' && doc.metadata?.type!=='capability' && doc.metadata?.kind!=='collection' && !wrappers.has(new URL(doc.url).pathname)));
+ const announcements=new Set(['page:/entries/x-2060192582706344390/']);
+ const visible=dated(docs.filter(doc=>doc.url!=='https://mayphus.org/' && doc.metadata?.type!=='capability' && doc.metadata?.kind!=='collection' && !wrappers.has(new URL(doc.url).pathname) && !announcements.has(doc.id)));
  if (!visible.length) return '<p class="empty">No entries are published here yet.</p>';
  return '<ol class="content-index">'+visible.map(doc=>`<li><a href="${escape(viewUrl(doc))}">${escape(doc.title)}</a>${doc.metadata?.date?`<time datetime="${escape(doc.metadata.date)}">${escape(dateLabel(doc.metadata.date))}</time>`:''}</li>`).join('')+'</ol>';
 }
