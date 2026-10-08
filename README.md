@@ -75,3 +75,13 @@ reselects or sorts them. Titles and URLs resolve from canonical records. `/journ
 and `/work/` retain the complete ungrouped reading index, including new records.
 Do not rotate the guide or regenerate it on routine publication; revise it only for
 an explicit editorial request or a meaningful public project change/milestone.
+
+Human pages share Open Graph, X card and JSON-LD metadata derived from canonical
+records. Verified `metadata.social_image` objects provide image details; other
+pages use text cards. Articles retain their original dates, profiles identify the
+same author, and only the working IPA chart is marked as a WebApplication.
+Existing profile translations advertise reciprocal language alternates. This
+metadata does not certify accuracy or promise platform previews or rich results.
+Known link-preview crawlers requesting only `*/*` (or no Accept header) receive
+HTML on human routes; explicit text/JSON preferences and ordinary machine clients
+keep their existing responses. Those routes vary on Accept and User-Agent.

@@ -42,7 +42,7 @@ for(const route of ['/profile/','/four-province-expressway-atlas/','/about-this-
  const expected=await readFile('dist'+routes[route],'utf8');
  for(const path of [route,route+'index.html']) {
   const response=await worker.fetch(new Request('https://mayphus.org'+path,{headers:{Accept:'text/html'}}),env);
-  assert.equal(response.status,200);assert.match(response.headers.get('content-type'),/text\/html/);assert.equal(response.headers.get('vary'),'Accept');assert.equal(await response.text(),expected);
+  assert.equal(response.status,200);assert.match(response.headers.get('content-type'),/text\/html/);assert.equal(response.headers.get('vary'),'Accept, User-Agent');assert.equal(await response.text(),expected);
  }
  const head=await worker.fetch(new Request('https://mayphus.org'+route,{method:'HEAD',headers:{Accept:'text/html'}}),env);
  assert.equal(head.status,200);assert.equal(await head.text(),'');
@@ -51,7 +51,7 @@ for(const route of ['/profile/','/four-province-expressway-atlas/','/about-this-
  const text=await readFile('dist'+route+'index.txt','utf8');
  for(const accept of ['', '*/*','text/plain','text/html;q=0','text/plain;q=1,text/html;q=.5']) {
   const response=await worker.fetch(new Request('https://mayphus.org'+route,{headers:{Accept:accept}}),env);
-  assert.equal(await response.text(),text);assert.equal(response.headers.get('vary'),'Accept');
+  assert.equal(await response.text(),text);assert.equal(response.headers.get('vary'),'Accept, User-Agent');
  }
 }
 assert.equal((await get(Object.values(routes)[0])).status,404);

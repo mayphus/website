@@ -38,7 +38,7 @@ for(const route of ['/profile/','/four-province-expressway-atlas/','/work/','/jo
  try {
  const response=await get(route,{headers:{Accept:'text/html'}});
  assert.match(response.headers.get('content-type'),/text\/html/);
- assert.equal(response.headers.get('vary'),'Accept');
+ assert.equal(response.headers.get('vary'),'Accept, User-Agent');
  // Cloudflare preview URLs normalize this header to noindex at the edge.
  const robots=response.headers.get('x-robots-tag');
  if(new URL(base).hostname.endsWith('.workers.dev')) assert.ok(robots?.toLowerCase().split(/\s*,\s*/).includes('noindex'),'Preview must remain noindex');

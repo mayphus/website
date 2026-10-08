@@ -120,7 +120,7 @@ test('content headers omit date chrome while metadata and prose dates survive',(
   assert.equal(JSON.stringify(record),before);
   if(type==='article') {
    const data=JSON.parse(html.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)[1]);
-   assert.equal(data.datePublished,'2026-10-05');
+   assert.equal(data['@graph'].find(node=>node['@type']==='Article').datePublished,'2026-10-05');
   }
  }
 });
@@ -194,7 +194,7 @@ test('reading index negotiation serves text by default and preserves HTML and HE
   for(const path of [route,route+'index.html',route.slice(0,-1)]) {
    for(const accept of ['', '*/*','text/plain','text/html;q=0','text/plain;q=1,text/html;q=.5']) {
     const response=await worker.fetch(new Request('https://mayphus.org'+path,{headers:{Accept:accept}}),env);
-    assert.equal(response.status,200);assert.equal(await response.text(),route+'index.txt');assert.match(response.headers.get('content-type'),/^text\/plain/);assert.equal(response.headers.get('vary'),'Accept');
+    assert.equal(response.status,200);assert.equal(await response.text(),route+'index.txt');assert.match(response.headers.get('content-type'),/^text\/plain/);assert.equal(response.headers.get('vary'),'Accept, User-Agent');
    }
   }
   const html=await worker.fetch(new Request('https://mayphus.org'+route,{headers:{Accept:'text/html'}}),env);
@@ -285,4 +285,67 @@ test('narrative guide preserves context, explicit order and safe canonical links
  const html=renderHome(narrative,[selected,later]);
  assert.equal((html.match(/href="\/journal\/"/g)||[]).length,1);
  assert.ok(!html.includes('class="guide-links"'));
+});
+
+test('social metadata has a deduplicated truthful graph, safe JSON and deliberate image cards',()=>{
+ const image={url:'https://mayphus.org/media/example.jpg',type:'image/jpeg',width:1200,height:800,alt:'An observed experiment & apparatus.'};
+ const record={...doc,title:'Quoted "title" </script><script>bad</script>',metadata:{...doc.metadata,social_image:image}};
+ const html=renderDocument(home,record);
+ const scripts=[...html.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/gs)];assert.equal(scripts.length,1);
+ const graph=JSON.parse(scripts[0][1])['@graph'];
+ assert.equal(new Set(graph.map(n=>n['@id'])).size,graph.length);
+ assert.equal(graph.find(n=>n['@type']==='Article').headline,record.title);
+ assert.equal(graph.find(n=>n['@type']==='Article').datePublished,record.metadata.date);
+ assert.equal(graph.find(n=>n['@type']==='ImageObject').width,1200);
+ assert.ok(html.includes('property="og:site_name" content="Mayphus"'));
+ assert.ok(html.includes('property="og:image:alt" content="An observed experiment &amp; apparatus."'));
+ assert.ok(html.includes('name="twitter:card" content="summary_large_image"'));
+ assert.ok(!html.includes('<script>bad</script>'));
+ assert.ok(!/aggregateRating|reviewRating|dateModified|"offers"|"email"/.test(scripts[0][1]));
+ for(const metadata of [{type:'note'},{type:'project'},{type:'page',status:'archived'}]){
+  const plain=renderDocument(home,{...doc,metadata});
+  const nodes=JSON.parse(plain.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)[1])['@graph'];
+  assert.ok(!nodes.some(n=>['Article','Product','Book','WebApplication','ImageObject'].includes(n['@type'])));
+  assert.ok(plain.includes('name="twitter:card" content="summary"'));
+  assert.ok(!plain.includes('property="og:image"'));
+ }
+ for(const [width,height]of [[480,360],[1432,1790]])assert.ok(renderDocument(home,{...doc,metadata:{...doc.metadata,social_image:{...image,width,height}}}).includes('name="twitter:card" content="summary"'));
+});
+test('only real profile translations and the interactive IPA tool get their specific markup',()=>{
+ const en={...doc,url:'https://mayphus.org/profile/',metadata:{type:'page',language:'en'}};
+ const zh={...en,url:'https://mayphus.org/profile/zh/',metadata:{type:'page',language:'zh-Hans'}};
+ for(const record of [en,zh]){
+  const html=renderDocument(home,record,[en,zh]);
+  assert.ok(html.includes('hreflang="en" href="https://mayphus.org/profile/"'));
+  assert.ok(html.includes('hreflang="zh-Hans" href="https://mayphus.org/profile/zh/"'));
+  const graph=JSON.parse(html.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)[1])['@graph'];
+  assert.equal(graph.find(n=>n['@type']==='ProfilePage').mainEntity['@id'],'https://mayphus.org/#person');
+ }
+ assert.ok(!renderDocument(home,en,[en]).includes('hreflang='));
+ const ipa=renderDocument(home,{...en,url:'https://mayphus.org/ipa/'});
+ assert.ok(ipa.includes('"@type":"WebApplication"'));
+ const map=renderDocument(home,{...en,url:'https://mayphus.org/map/'});
+ assert.ok(!map.includes('"@type":"WebApplication"'));
+});
+test('social crawlers get HTML without changing explicit machine requests or review privacy',async()=>{
+ const {build}=await import('esbuild');
+ const result=await build({entryPoints:['workers/human.ts'],bundle:true,write:false,format:'esm',platform:'neutral',plugins:[{name:'social-fixture',setup(build){
+  build.onResolve({filter:/^mayphus-(content-worker|human-routes)$/},args=>({path:args.path,namespace:'fixture'}));
+  build.onLoad({filter:/.*/,namespace:'fixture'},args=>({contents:args.path==='mayphus-human-routes'?`export default {'/profile/':'/_human/profile.html'};`:`export default {fetch(){return new Response('canonical content',{headers:{'Content-Type':'text/plain'}})}};`}));
+ }}]});
+ const {default:worker}=await import('data:text/javascript;base64,'+Buffer.from(result.outputFiles[0].text).toString('base64'));
+ const env={ASSETS:{fetch:async()=>new Response('human HTML')}};
+ for(const ua of ['Twitterbot/1.0','facebookexternalhit/1.1','Facebot','LinkedInBot','Pinterestbot/1.0','Slackbot-LinkExpanding','Discordbot','TelegramBot','WhatsApp']){
+  for(const accept of ['', '*/*','*/*;q=0.8']){
+   const response=await worker.fetch(new Request('https://mayphus.org/profile/',{headers:{Accept:accept,'User-Agent':ua}}),env);
+   assert.equal(await response.text(),'human HTML');assert.equal(response.headers.get('vary'),'Accept, User-Agent');
+  }
+  for(const accept of ['text/plain','application/json','text/html;q=0','*/*;q=0','text/plain;q=1,text/html;q=.5'])assert.equal(await(await worker.fetch(new Request('https://mayphus.org/profile/',{headers:{Accept:accept,'User-Agent':ua}}),env)).text(),'canonical content');
+ }
+ const headers={'User-Agent':'Twitterbot',Accept:'*/*'};
+ assert.equal((await worker.fetch(new Request('https://mayphus.org/_human/profile.html',{headers}),env)).status,404);
+ const review=await worker.fetch(new Request('https://preview.workers.dev/profile/',{headers}),env);
+ assert.equal(review.headers.get('x-robots-tag'),'noindex, nofollow, noarchive');assert.equal(review.headers.get('cache-control'),'no-store');
+ const head=await worker.fetch(new Request('https://mayphus.org/profile/',{headers,method:'HEAD'}),env);assert.equal(await head.text(),'');
+ assert.equal(await(await worker.fetch(new Request('https://mayphus.org/profile/',{headers:{Accept:'*/*','User-Agent':'ordinary client'}}),env)).text(),'canonical content');
 });
