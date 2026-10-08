@@ -18,11 +18,13 @@ export default {
   if(url.pathname.startsWith('/_human/'))return new Response('Not found',{status:404});
   const route=routeFor(url.pathname);
   const target=(routes as Record<string,string>)[route];
-  if((request.method==='GET'||request.method==='HEAD') && target && wantsHtml(request.headers.get('accept'))) {
-   const asset=new URL(target,url.origin);
+  const html=wantsHtml(request.headers.get('accept'));
+  const indexText=['/journal/','/work/'].includes(route) && !html;
+  if((request.method==='GET'||request.method==='HEAD') && target && (html || indexText)) {
+   const asset=new URL(indexText?route+'index.txt':target,url.origin);
    const response=await env.ASSETS.fetch(new Request(asset,{method:request.method}));
    const headers=new Headers(response.headers);
-   headers.set('Content-Type','text/html; charset=utf-8');
+   headers.set('Content-Type',indexText?'text/plain; charset=utf-8':'text/html; charset=utf-8');
    headers.set('Vary','Accept');
    headers.set('Cache-Control','public, max-age=300');
    headers.set('X-Content-Type-Options','nosniff');

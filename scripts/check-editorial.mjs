@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {renderDocument,renderHome,viewUrl,recordImages,stylesheetPath,renderGuide,renderFullIndex} from './editorial.mjs';
+import {renderDocument,renderHome,viewUrl,recordImages,stylesheetPath,renderGuide,renderFullIndex,renderReadingIndexText,readingDocuments} from './editorial.mjs';
 const home={title:'Mayphus',email:'tangmeifa@gmail.com',github:'https://github.com/mayphus',footer:'One content.',introduction:'Build with AI.',background:'Software and systems.',records_description:'Source records.',contact_invitation:'People and their AI agents are welcome.'};
 const doc={id:'note:example',title:'测试 <script>',url:'https://mayphus.org/example/',text_url:'https://mayphus.org/records/example.txt',summary:'A safe & readable record.',metadata:{type:'article',date:'2026-10-05',route:'/example/'},text:'# 测试 <script>\n\n[Bad](javascript:alert(1))\n\n<script>alert(1)</script>\n\n| Column | Value |\n|---|---|\n|中文|123|'};
 test('renders the canonical record safely with semantic reading and contact',()=>{const html=renderDocument(home,doc);assert.ok(html.includes('测试 &lt;script&gt;'));assert.ok(!html.includes('<script>alert'));assert.ok(!html.includes('href="javascript:'));assert.ok(html.includes('class="table-scroll"'));assert.ok(html.includes('mailto:'+home.email));assert.ok(!html.includes('class="reading-end"'));assert.ok(!html.includes('/example/index.txt')); assert.ok(html.includes('name="viewport"'));assert.ok(html.includes('Skip to content'));});
@@ -168,4 +168,39 @@ test('short posts retain unique source and project links without inventing a sto
  assert.equal(record.metadata.date,'2020-01-02');
  const inBody=renderDocument(home,{...record,text:'[Original post](https://example.com/post)'});
  assert.equal((inBody.match(/href="https:\/\/example.com\/post"/g)||[]).length,1);
+});
+
+test('plain-text reading index uses the same selected records and current human URLs as HTML',()=>{
+ const note={...doc,id:'note:short',url:'https://mayphus.org/notes/short/',metadata:{type:'note',id:'short'},title:'Short observation'};
+ const capability={...doc,id:'capability:search',metadata:{type:'capability'}};
+ const docs=[note,capability];const text=renderReadingIndexText(home,docs);
+ assert.deepEqual(readingDocuments(docs),[note]);
+ assert.ok(text.includes('https://mayphus.org/notes/short/'));assert.ok(!text.includes('capability'));
+ assert.ok(renderFullIndex(home,docs).includes('href="/notes/short/"'));
+ assert.equal(viewUrl(note),'/notes/short/');assert.equal(viewUrl({...note,url:'https://mayphus.org/#short'}),'/notes/short/');
+});
+
+test('reading index negotiation serves text by default and preserves HTML and HEAD',async()=>{
+ const {build}=await import('esbuild');
+ const result=await build({entryPoints:['workers/human.ts'],bundle:true,write:false,format:'esm',platform:'neutral',plugins:[{name:'fixture-content',setup(build){
+  build.onResolve({filter:/^mayphus-(content-worker|human-routes)$/},args=>({path:args.path,namespace:'fixture'}));
+  build.onLoad({filter:/.*/,namespace:'fixture'},args=>({contents:args.path==='mayphus-human-routes'?`export default {'/journal/':'/_human/journal.html','/work/':'/_human/work.html','/profile/':'/_human/profile.html'};`:`export default {fetch(){return new Response('canonical content',{headers:{'Content-Type':'text/plain'}})}};`}));
+ }}]});
+ const {default:worker}=await import('data:text/javascript;base64,'+Buffer.from(result.outputFiles[0].text).toString('base64'));
+ const env={ASSETS:{fetch:async request=>new Response(new URL(request.url).pathname)}};
+ for(const route of ['/journal/','/work/']) {
+  for(const path of [route,route+'index.html',route.slice(0,-1)]) {
+   for(const accept of ['', '*/*','text/plain','text/html;q=0','text/plain;q=1,text/html;q=.5']) {
+    const response=await worker.fetch(new Request('https://mayphus.org'+path,{headers:{Accept:accept}}),env);
+    assert.equal(response.status,200);assert.equal(await response.text(),route+'index.txt');assert.match(response.headers.get('content-type'),/^text\/plain/);assert.equal(response.headers.get('vary'),'Accept');
+   }
+  }
+  const html=await worker.fetch(new Request('https://mayphus.org'+route,{headers:{Accept:'text/html'}}),env);
+  assert.equal(await html.text(),'/_human'+route.slice(0,-1)+'.html');
+  for(const accept of ['*/*','text/html']){
+   const head=await worker.fetch(new Request('https://mayphus.org'+route,{method:'HEAD',headers:{Accept:accept}}),env);assert.equal(head.status,200);assert.equal(await head.text(),'');
+  }
+ }
+ const profile=await worker.fetch(new Request('https://mayphus.org/profile/'),env);assert.equal(await profile.text(),'canonical content');
+ assert.equal((await worker.fetch(new Request('https://mayphus.org/_human/journal.html'),env)).status,404);
 });

@@ -47,7 +47,7 @@ for(const route of ['/profile/','/four-province-expressway-atlas/','/about-this-
  const head=await worker.fetch(new Request('https://mayphus.org'+route,{method:'HEAD',headers:{Accept:'text/html'}}),env);
  assert.equal(head.status,200);assert.equal(await head.text(),'');
 }
-for(const route of ['/profile/','/four-province-expressway-atlas/','/about-this-content/']) {
+for(const route of ['/profile/','/four-province-expressway-atlas/','/about-this-content/','/journal/','/work/']) {
  const text=await readFile('dist'+route+'index.txt','utf8');
  for(const accept of ['', '*/*','text/plain','text/html;q=0','text/plain;q=1,text/html;q=.5']) {
   const response=await worker.fetch(new Request('https://mayphus.org'+route,{headers:{Accept:accept}}),env);

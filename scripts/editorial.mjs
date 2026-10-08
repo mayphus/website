@@ -52,7 +52,7 @@ function shell({title,description,url='https://mayphus.org/',language='en',home,
  const structured={'@context':'https://schema.org','@type':article?'Article':'WebPage',name:title,url,description,...(article?{headline:title,author:{'@type':'Person',name:home.title},...(date?{datePublished:date}:{})}:{})};
  return `<!doctype html><html lang="${escape(language)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(title)}${title===home.title?'':` — ${escape(home.title)}`}</title><meta name="description" content="${escape(plain(description).slice(0,300))}"><link rel="canonical" href="${escape(url)}"><meta property="og:title" content="${escape(title)}"><meta property="og:description" content="${escape(plain(description).slice(0,300))}"><meta property="og:url" content="${escape(url)}"><meta property="og:type" content="${article?'article':'website'}"><link rel="stylesheet" href="${stylesheetPath}"><link rel="alternate" type="application/rss+xml" href="/rss.xml" title="Mayphus updates"><link rel="alternate" type="application/json" href="/agent-index.json" title="AI-readable content index"><script type="application/ld+json">${JSON.stringify(structured).replaceAll('<','\\u003c')}</script></head><body><a class="skip-link" href="#main">Skip to content</a><header class="site-header"><a class="brand" href="/" aria-label="Mayphus home"><span class="brand-mark" aria-hidden="true"></span>${escape(home.title)}</a>${disclosurePage?'':'<nav aria-label="Site navigation"><a href="#contact">Contact</a></nav>'}</header><main id="main">${body}</main><footer class="site-footer" id="contact">${disclosurePage?'':`<a class="email-link" href="mailto:${escape(email)}">${escape(email)}</a>`}<a class="content-disclosure" href="/about-this-content/" aria-label="About this content: Human work. AI-assisted words.">Human work. AI-assisted words.</a></footer>${root?'<script src="/fragments.js" defer></script>':''}</body></html>`;
 }
-function contentIndex(docs) {
+export function readingDocuments(docs) {
  // Keep routes and the complete machine index; omit empty wrappers and duplicate collection indexes from this reading list.
  const wrappers=new Set(['/writing/','/infra/','/agents/','/chat/','/daily/','/diet/','/job-hunter/','/status/','/demo/','/about-this-content/']);
  const announcements=new Set([
@@ -61,7 +61,10 @@ function contentIndex(docs) {
   'note:electronic-learning-book-repair','note:nanopi-r2s-alpine-boot','note:how-i-work-with-ai',
   'note:nano-pi-teardown','note:router-service-recovery','note:sugar-from-a-soldier',
  ]);
- const visible=dated(docs.filter(doc=>doc.url!=='https://mayphus.org/' && doc.metadata?.type!=='capability' && doc.metadata?.kind!=='collection' && !wrappers.has(new URL(doc.url).pathname) && !announcements.has(doc.id)));
+ return dated(docs.filter(doc=>doc.url!=='https://mayphus.org/' && doc.metadata?.type!=='capability' && doc.metadata?.kind!=='collection' && !wrappers.has(new URL(doc.url).pathname) && !announcements.has(doc.id)));
+}
+function contentIndex(docs) {
+ const visible=readingDocuments(docs);
  if (!visible.length) return '<p class="empty">No entries are published here yet.</p>';
  return '<ul class="content-index" role="list">'+visible.map(doc=>{const topic=indexTopic(doc);return `<li><span class="topic-icon" title="${escape(topic.label)}" aria-hidden="true">${topicSvg(topic)}</span><a href="${escape(viewUrl(doc))}" title="${escape(topic.label)}"><span class="sr-only">${escape(topic.label)}: </span>${escape(doc.title)}</a></li>`;}).join('')+'</ul>';
 }
@@ -80,6 +83,9 @@ export function renderHome(home,docs) {
  const guide=home.guide;
  const body=guide?`<section class="hero guide-intro"><h1>${escape(home.introduction)}</h1><p>${escape(guide.overview)}</p><a class="index-jump" href="/journal/">${escape(guide.index_label)} <span aria-hidden="true">→</span></a></section>${renderGuide(home,docs)}<p class="guide-more"><a href="/journal/">${escape(guide.index_label)} <span aria-hidden="true">→</span></a></p>`:`<section class="hero"><h1>${escape(home.introduction)}</h1><p>${escape(home.background)}</p></section><section class="index-section" aria-label="Content index">${contentIndex(docs)}</section>`;
  return shell({title:home.title,description:home.description,home,root:true,body});
+}
+export function renderReadingIndexText(home,docs,path='/journal/') {
+ return `Source: https://mayphus.org${path}\nTitle: ${home.guide?.index_label || 'All work & notes'}\n\n${home.guide?.index_description || home.background}\n\n${readingDocuments(docs).map(doc=>`${doc.title}\nhttps://mayphus.org${viewUrl(doc)}`).join('\n\n')}\n`;
 }
 export function renderFullIndex(home,docs,path='/journal/') {
  const title=home.guide?.index_label || 'All work & notes';
@@ -133,9 +139,14 @@ export async function buildEditorial(home,corpus,catalogs) {
   await page(route,renderDocument(home,doc,docs));
   const hash=new URL(doc.url).hash;
   if(hash)fragments[decodeURIComponent(hash.slice(1))]=route;
+  else if(doc.id.startsWith('note:') && !doc.metadata?.route)fragments[doc.metadata.id]=route;
  }
  await page('/work/',renderFullIndex(home,docs,'/work/'));
  await page('/journal/',renderFullIndex(home,docs));
+ for(const route of ['/journal/','/work/']) {
+  await mkdir('dist'+route,{recursive:true});
+  await writeFile('dist'+route+'index.txt',renderReadingIndexText(home,docs,route));
+ }
  await writeFile('dist/human-fragments.json',JSON.stringify(fragments)+'\n');
  await writeFile('.cache/human-routes.json',JSON.stringify(routes)+'\n');
  return routes;
