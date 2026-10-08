@@ -239,3 +239,12 @@ test('IPA enhancement is scoped and preserves canonical no-JavaScript audio link
  assert.ok(html.includes('src="/ipa/ipa-chart.svg"'));
  assert.ok(!renderDocument(home,doc).includes('/ipa-chart.'));
 });
+
+
+test('shared footer exposes the existing RSS feed and matching autodiscovery',()=>{
+ for(const html of [renderHome(home,[doc]),renderDocument(home,doc),renderFullIndex(home,[doc])]) {
+  assert.equal((html.match(/class="rss-link" href="\/rss.xml"/g)||[]).length,1);
+  assert.ok(html.includes('<link rel="alternate" type="application/rss+xml" href="/rss.xml"'));
+  assert.ok(html.includes('>RSS</a>'));
+ }
+});
