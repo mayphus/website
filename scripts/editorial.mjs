@@ -103,9 +103,18 @@ export function renderDocument(home,doc,docs=[]) {
   }
   return remainder.trim()!=='' || line.trim()==='';
  }).join('\n');
+ // Summaries remain metadata; do not repeat prose already present in the record.
+ const summary=plain(doc.summary);
+ const repeatedSummary=plain(text)===summary || markdown.parse(text,{}).some((token,index,tokens)=>token.type==='inline' && tokens[index-1]?.type==='paragraph_open' && plain(token.content)===summary);
+ const links=[];const seenLinks=new Set();
+ for(const link of doc.metadata?.links || []) {
+  if(typeof link.url!=='string' || !/^https?:\/\//i.test(link.url) || seenLinks.has(link.url) || doc.text.includes(link.url))continue;
+  seenLinks.add(link.url);links.push(link);
+ }
+ const sourceLinks=links.length?`<p class="record-links">${links.map(link=>`<a href="${escape(link.url)}">${escape(link.label || 'Source')}</a>`).join(' · ')}</p>`:'';
  const article=doc.metadata?.type==='article';
  const current=article?'Writing':doc.metadata?.type==='project'?'Work':doc.url.includes('/profile/')?'About':'';
- return shell({title:doc.title,description:doc.summary,url:doc.url,language:doc.metadata?.language || 'en',home,current,article,date:doc.metadata?.date,body:`<article class="reading" data-record-id="${escape(doc.id)}"><header class="reading-header"><h1>${escape(doc.title)}</h1>${doc.summary!==doc.title?`<p class="standfirst">${escape(plain(doc.summary))}</p>`:''}</header><div class="prose">${markdown.render(text)}</div>${images.length?`<section class="record-gallery" aria-label="Images from this record">${images.map(photo=>`<figure><a href="${escape(photo.url)}"><img src="${escape(photo.url)}" alt="${escape(photo.caption)}" loading="lazy" decoding="async"></a><figcaption>${escape(photo.caption)}</figcaption></figure>`).join('')}</section>`:''}</article>`});
+ return shell({title:doc.title,description:doc.summary,url:doc.url,language:doc.metadata?.language || 'en',home,current,article,date:doc.metadata?.date,body:`<article class="reading" data-record-id="${escape(doc.id)}"><header class="reading-header"><h1>${escape(doc.title)}</h1>${summary && summary!==plain(doc.title) && !repeatedSummary?`<p class="standfirst">${escape(plain(doc.summary))}</p>`:''}</header><div class="prose">${markdown.render(text)}${sourceLinks}</div>${images.length?`<section class="record-gallery" aria-label="Images from this record">${images.map(photo=>`<figure><a href="${escape(photo.url)}"><img src="${escape(photo.url)}" alt="${escape(photo.caption)}" loading="lazy" decoding="async"></a><figcaption>${escape(photo.caption)}</figcaption></figure>`).join('')}</section>`:''}</article>`});
 }
 export async function buildEditorial(home,corpus,catalogs) {
  const docs=corpus.documents;

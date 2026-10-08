@@ -144,3 +144,28 @@ test('editorial guide keeps explicit selections stable while the full index grow
  assert.throws(()=>renderGuide(guideHome,[]),/Missing public guide record/);
  assert.ok(renderGuide({...guideHome,guide:{...guideHome.guide,themes:[{...guideHome.guide.themes[0],description:'<script>unsafe</script>'}]}},[selected]).includes('&lt;script&gt;'));
 });
+
+
+test('summaries already in a short post or profile body are not repeated visually',()=>{
+ for(const body of ['The exact observation.', 'Name\n\nProfessional Summary\n\nThe exact observation.\n\nMore detail.']) {
+  const record={...doc,summary:'The exact observation.',text:body};
+  const html=renderDocument(home,record);
+  assert.ok(!html.includes('class="standfirst"'));
+  assert.ok(html.includes('<p>The exact observation.</p>'));
+  assert.equal(record.text,body);
+  assert.ok(html.includes('name="description" content="The exact observation."'));
+ }
+ assert.ok(renderDocument(home,{...doc,summary:'A useful distinct summary.',text:'A different body.'}).includes('class="standfirst"'));
+ assert.ok(renderDocument(home,{...doc,summary:'A partial thought',text:'A partial thought extended into something else.'}).includes('class="standfirst"'));
+});
+test('short posts retain unique source and project links without inventing a story',()=>{
+ const record={...doc,metadata:{type:'note',date:'2020-01-02',links:[{label:'Original post',url:'https://example.com/post'},{label:'Full project record',url:'https://mayphus.org/project/'},{label:'Duplicate',url:'https://example.com/post'},{label:'Unsafe',url:'javascript:alert(1)'}]},summary:'One observation.',text:'One observation.'};
+ const html=renderDocument(home,record);
+ assert.ok(html.includes('<a href="https://example.com/post">Original post</a>'));
+ assert.ok(html.includes('<a href="https://mayphus.org/project/">Full project record</a>'));
+ assert.ok(!html.includes('>Duplicate<'));assert.ok(!html.includes('javascript:'));
+ assert.ok(!html.includes('<time'));
+ assert.equal(record.metadata.date,'2020-01-02');
+ const inBody=renderDocument(home,{...record,text:'[Original post](https://example.com/post)'});
+ assert.equal((inBody.match(/href="https:\/\/example.com\/post"/g)||[]).length,1);
+});
