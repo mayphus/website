@@ -219,3 +219,12 @@ test('quiet archive is explicit and reversible while substantive archived work r
  assert.ok(readingDocuments([restored,historical]).includes(restored));
  assert.equal(quiet.text,restored.text);
 });
+
+
+test('compact shared chrome keeps home and footer contact; journal resolves legacy fragments',()=>{
+ const html=renderDocument(home,doc);
+ assert.ok(html.includes('aria-label="Mayphus home"'));
+ assert.ok(!html.includes('href="#contact"'));
+ assert.equal((html.match(/class="email-link"/g)||[]).length,1);
+ assert.ok(renderFullIndex(home,[doc]).includes('<script src="/fragments.js" defer></script>'));
+});
