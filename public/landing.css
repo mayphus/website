@@ -17,5 +17,5 @@
 
 .ipa-chart-scroll .chart-sound-cell{cursor:default}
 
-.site-footer .rss-link{white-space:nowrap}@media(max-width:600px){.site-footer .email-link+.rss-link{margin-left:18px}}
+.site-footer .rss-link,.site-footer .work-link{white-space:nowrap}@media(max-width:600px){.site-footer .work-link,.site-footer .work-link+.rss-link{margin-left:18px}}
 .reading[data-record-id="page:/nanopi-r2s-alpine-boot/"] .prose h3{font-size:1.1rem;font-weight:600;letter-spacing:0;margin:1.25em 0 .35em}

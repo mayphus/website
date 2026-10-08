@@ -248,3 +248,12 @@ test('shared footer exposes the existing RSS feed and matching autodiscovery',()
   assert.ok(html.includes('>RSS</a>'));
  }
 });
+
+
+test('work inquiries have one quiet footer link without changing the disclosure page',()=>{
+ for(const html of [renderHome(home,[doc]),renderDocument(home,doc),renderFullIndex(home,[doc])]) {
+  assert.equal((html.match(/class="work-link" href="\/work-with-me\/"/g)||[]).length,1);
+  assert.ok(html.indexOf('class="work-link"')>html.indexOf('<footer'));
+ }
+ assert.ok(!renderDocument(home,{...doc,url:'https://mayphus.org/about-this-content/'}).includes('class="work-link"'));
+});
