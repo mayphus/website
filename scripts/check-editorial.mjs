@@ -259,3 +259,13 @@ test('work inquiries have one quiet footer link without changing the disclosure 
  }
  assert.ok(!renderDocument(home,{...doc,url:'https://mayphus.org/about-this-content/'}).includes('class="work-link"'));
 });
+
+
+test('Pinterest verification is present once on the homepage only',()=>{
+ const tag='<meta name="p:domain_verify" content="69f7fa72d39ff4fec26fec1895430031"/>';
+ const html=renderHome(home,[doc]);
+ assert.equal(html.split(tag).length-1,1);
+ assert.ok(html.indexOf(tag)<html.indexOf('</head>'));
+ assert.ok(!renderDocument(home,doc).includes('p:domain_verify'));
+ assert.ok(!renderFullIndex(home,[doc]).includes('p:domain_verify'));
+});
