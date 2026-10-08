@@ -228,3 +228,14 @@ test('compact shared chrome keeps home and footer contact; journal resolves lega
  assert.equal((html.match(/class="email-link"/g)||[]).length,1);
  assert.ok(renderFullIndex(home,[doc]).includes('<script src="/fragments.js" defer></script>'));
 });
+
+
+test('IPA enhancement is scoped and preserves canonical no-JavaScript audio links',()=>{
+ const ipa={...doc,url:'https://mayphus.org/ipa/',text:'![IPA chart](/ipa/ipa-chart.svg)\n\n[p — Voiceless bilabial plosive](/ipa/sounds/001.ogg)'};
+ const html=renderDocument(home,ipa);
+ assert.ok(html.includes('data-ipa-chart'));
+ assert.match(html,/src="\/ipa-chart\.[a-f0-9]{16}\.js" defer/);
+ assert.ok(html.includes('href="/ipa/sounds/001.ogg"'));
+ assert.ok(html.includes('src="/ipa/ipa-chart.svg"'));
+ assert.ok(!renderDocument(home,doc).includes('/ipa-chart.'));
+});
