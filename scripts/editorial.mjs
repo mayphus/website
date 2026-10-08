@@ -71,6 +71,12 @@ function contentIndex(docs,options) {
  if (!visible.length) return '<p class="empty">No entries are published here yet.</p>';
  return '<ul class="content-index" role="list">'+visible.map(doc=>{const topic=indexTopic(doc);return `<li><span class="topic-icon" title="${escape(topic.label)}" aria-hidden="true">${topicSvg(topic)}</span><a href="${escape(viewUrl(doc))}" title="${escape(topic.label)}"><span class="sr-only">${escape(topic.label)}: </span>${escape(doc.title)}</a></li>`;}).join('')+'</ul>';
 }
+function guideVisual(visual,records) {
+ if(!visual)return '';
+ const doc=records.get(visual.record);
+ if(!doc||doc.metadata?.type==='capability')throw Error('Missing public visual record');
+ return `<figure class="guide-visual"><a href="${escape(viewUrl(doc))}"><img src="${escape(visual.src)}" width="${visual.width}" height="${visual.height}" alt="${escape(visual.alt)}" loading="lazy" decoding="async"></a><figcaption><a href="${escape(viewUrl(doc))}">${escape(visual.caption)}</a></figcaption></figure>`;
+}
 export function renderGuide(home,docs) {
  const guide=home.guide;
  if(!guide)return '';
@@ -82,7 +88,7 @@ export function renderGuide(home,docs) {
    if(!doc||doc.metadata?.type==='capability')throw Error(`Missing public guide record: ${value.record}`);
    return `<a href="${escape(viewUrl(doc))}">${escape(value.label)}</a>`;
   };
-  return `<nav class="guide-contents" aria-label="Explore the themes">${guide.themes.map(theme=>`<a href="#guide-${escape(theme.id)}">${escape(theme.title)}</a>`).join('')}</nav><div class="home-guide narrative-guide">${guide.themes.map(theme=>`<section class="guide-theme" aria-labelledby="guide-${escape(theme.id)}"><h2 id="guide-${escape(theme.id)}">${escape(theme.title)}</h2><p class="theme-description">${escape(theme.description)}</p>${theme.sections.map((section,index)=>`<section class="guide-section" aria-labelledby="guide-${escape(theme.id)}-${index}"><h3 id="guide-${escape(theme.id)}-${index}">${escape(section.title)}</h3>${section.paragraphs.map(paragraph=>`<p>${paragraph.map(part).join('')}</p>`).join('')}</section>`).join('')}</section>`).join('')}</div>`;
+  return `<nav class="guide-contents" aria-label="Explore the themes">${guide.themes.map(theme=>`<a href="#guide-${escape(theme.id)}">${escape(theme.title)}</a>`).join('')}</nav><div class="home-guide narrative-guide">${guide.themes.map(theme=>`<section class="guide-theme" aria-labelledby="guide-${escape(theme.id)}"><h2 id="guide-${escape(theme.id)}">${escape(theme.title)}</h2><p class="theme-description">${escape(theme.description)}</p>${guideVisual(theme.visual,records)}${theme.sections.map((section,index)=>`<section class="guide-section" aria-labelledby="guide-${escape(theme.id)}-${index}"><h3 id="guide-${escape(theme.id)}-${index}">${escape(section.title)}</h3>${section.paragraphs.map(paragraph=>`<p>${paragraph.map(part).join('')}</p>`).join('')}</section>`).join('')}</section>`).join('')}</div>`;
  }
  return `<div class="home-guide">${guide.themes.map(theme=>`<section class="guide-theme" aria-labelledby="guide-${escape(theme.id)}"><h2 id="guide-${escape(theme.id)}">${escape(theme.title)}</h2><p class="theme-description">${escape(theme.description)}</p><ul class="guide-links" role="list">${theme.entries.map(entry=>{
   const doc=records.get(entry.record);

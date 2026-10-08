@@ -349,3 +349,19 @@ test('social crawlers get HTML without changing explicit machine requests or rev
  const head=await worker.fetch(new Request('https://mayphus.org/profile/',{headers,method:'HEAD'}),env);assert.equal(await head.text(),'');
  assert.equal(await(await worker.fetch(new Request('https://mayphus.org/profile/',{headers:{Accept:'*/*','User-Agent':'ordinary client'}}),env)).text(),'canonical content');
 });
+
+test('homepage figures keep intrinsic dimensions, lazy loading, context links and escaping without runtime',()=>{
+ const h={...home,guide:{overview:'A guide.',index_label:'All work',themes:[{id:'evidence',title:'Evidence',description:'Follow it.',visual:{record:doc.id,src:'https://mayphus.org/home-visuals/test.svg',width:520,height:310,alt:'Points & regions',caption:'A "small" <sketch>'},sections:[{title:'Geometry',paragraphs:[['See ',{record:doc.id,label:'this record'},'.']]}]}]}};
+ const html=renderHome(h,[doc]);
+ assert.equal((html.match(/class="guide-visual"/g)||[]).length,1);
+ assert.ok(html.includes('width="520" height="310" alt="Points &amp; regions" loading="lazy" decoding="async"'));
+ assert.ok(html.includes('A &quot;small&quot; &lt;sketch&gt;'));
+ assert.ok(html.includes('<figcaption><a href="/example/">'));
+ assert.ok(html.includes('<a href="/example/">this record</a>'));
+ assert.ok(!html.includes('ipa-chart.')&&!html.includes('<iframe'));
+ assert.equal((html.match(/p:domain_verify/g)||[]).length,1);
+ assert.equal((html.match(/class="rss-link"/g)||[]).length,1);
+ assert.equal((html.match(/class="content-disclosure"/g)||[]).length,1);
+ assert.ok(html.includes('name="twitter:card"'));
+ assert.throws(()=>renderHome(h,[]),/Missing public visual record/);
+});
