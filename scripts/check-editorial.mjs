@@ -269,3 +269,20 @@ test('Pinterest verification is present once on the homepage only',()=>{
  assert.ok(!renderDocument(home,doc).includes('p:domain_verify'));
  assert.ok(!renderFullIndex(home,[doc]).includes('p:domain_verify'));
 });
+
+
+test('narrative guide preserves context, explicit order and safe canonical links',()=>{
+ const selected={...doc,id:'story',url:'https://mayphus.org/story/',title:'Story'};
+ const later={...doc,id:'later',url:'https://mayphus.org/later/',title:'Later'};
+ const narrative={...home,guide:{overview:'Follow the evidence.',index_label:'All work & notes',themes:[{id:'path',title:'A path',description:'Start here.',sections:[{title:'A step',paragraphs:[['Read ',{record:'story',label:'the <story>'},' before continuing.']]}]}]}};
+ const guide=renderGuide(narrative,[selected]);
+ assert.equal(renderGuide(narrative,[later,selected]),guide);
+ assert.ok(guide.includes('<p>Read <a href="/story/">the &lt;story&gt;</a> before continuing.</p>'));
+ assert.ok(guide.includes('href="#guide-path"'));
+ assert.ok(guide.includes('<h3 id="guide-path-0">A step</h3>'));
+ assert.ok(!guide.includes('/later/'));
+ assert.throws(()=>renderGuide(narrative,[later]),/Missing public guide record/);
+ const html=renderHome(narrative,[selected,later]);
+ assert.equal((html.match(/href="\/journal\/"/g)||[]).length,1);
+ assert.ok(!html.includes('class="guide-links"'));
+});
