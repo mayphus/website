@@ -38,7 +38,7 @@ console.log('Deployment bundle passed: homepage, health, search, MCP and privacy
 
 const routes=JSON.parse(await readFile('.cache/human-routes.json','utf8'));
 const docs=JSON.parse(await readFile('dist/documents.json','utf8')).documents;
-for(const route of ['/profile/','/four-province-expressway-atlas/','/about-this-content/','/work/','/journal/']) {
+for(const route of ['/profile/','/four-province-expressway-atlas/','/about-this-content/','/work/','/journal/','/archive/']) {
  const expected=await readFile('dist'+routes[route],'utf8');
  for(const path of [route,route+'index.html']) {
   const response=await worker.fetch(new Request('https://mayphus.org'+path,{headers:{Accept:'text/html'}}),env);
@@ -47,7 +47,7 @@ for(const route of ['/profile/','/four-province-expressway-atlas/','/about-this-
  const head=await worker.fetch(new Request('https://mayphus.org'+route,{method:'HEAD',headers:{Accept:'text/html'}}),env);
  assert.equal(head.status,200);assert.equal(await head.text(),'');
 }
-for(const route of ['/profile/','/four-province-expressway-atlas/','/about-this-content/','/journal/','/work/']) {
+for(const route of ['/profile/','/four-province-expressway-atlas/','/about-this-content/','/journal/','/work/','/archive/']) {
  const text=await readFile('dist'+route+'index.txt','utf8');
  for(const accept of ['', '*/*','text/plain','text/html;q=0','text/plain;q=1,text/html;q=.5']) {
   const response=await worker.fetch(new Request('https://mayphus.org'+route,{headers:{Accept:accept}}),env);

@@ -184,11 +184,11 @@ test('reading index negotiation serves text by default and preserves HTML and HE
  const {build}=await import('esbuild');
  const result=await build({entryPoints:['workers/human.ts'],bundle:true,write:false,format:'esm',platform:'neutral',plugins:[{name:'fixture-content',setup(build){
   build.onResolve({filter:/^mayphus-(content-worker|human-routes)$/},args=>({path:args.path,namespace:'fixture'}));
-  build.onLoad({filter:/.*/,namespace:'fixture'},args=>({contents:args.path==='mayphus-human-routes'?`export default {'/journal/':'/_human/journal.html','/work/':'/_human/work.html','/profile/':'/_human/profile.html'};`:`export default {fetch(){return new Response('canonical content',{headers:{'Content-Type':'text/plain'}})}};`}));
+  build.onLoad({filter:/.*/,namespace:'fixture'},args=>({contents:args.path==='mayphus-human-routes'?`export default {'/journal/':'/_human/journal.html','/work/':'/_human/work.html','/archive/':'/_human/archive.html','/profile/':'/_human/profile.html'};`:`export default {fetch(){return new Response('canonical content',{headers:{'Content-Type':'text/plain'}})}};`}));
  }}]});
  const {default:worker}=await import('data:text/javascript;base64,'+Buffer.from(result.outputFiles[0].text).toString('base64'));
  const env={ASSETS:{fetch:async request=>new Response(new URL(request.url).pathname)}};
- for(const route of ['/journal/','/work/']) {
+ for(const route of ['/journal/','/work/','/archive/']) {
   for(const path of [route,route+'index.html',route.slice(0,-1)]) {
    for(const accept of ['', '*/*','text/plain','text/html;q=0','text/plain;q=1,text/html;q=.5']) {
     const response=await worker.fetch(new Request('https://mayphus.org'+path,{headers:{Accept:accept}}),env);
@@ -203,4 +203,19 @@ test('reading index negotiation serves text by default and preserves HTML and HE
  }
  const profile=await worker.fetch(new Request('https://mayphus.org/profile/'),env);assert.equal(await profile.text(),'canonical content');
  assert.equal((await worker.fetch(new Request('https://mayphus.org/_human/journal.html'),env)).status,404);
+});
+
+test('quiet archive is explicit and reversible while substantive archived work remains visible',()=>{
+ const quiet={...doc,id:'note:reply',title:'Reply',url:'https://mayphus.org/notes/reply/',metadata:{type:'note',status:'archived',discovery:'archive'},text:'Original reply.'};
+ const historical={...doc,id:'page:/study/',url:'https://mayphus.org/study/',metadata:{type:'page',status:'archived'}};
+ assert.deepEqual(readingDocuments([quiet,historical]),[historical]);
+ assert.deepEqual(readingDocuments([quiet,historical],{archive:true}),[quiet]);
+ assert.ok(renderFullIndex(home,[quiet,historical],'/archive/').includes('href="/notes/reply/"'));
+ assert.ok(!renderFullIndex(home,[quiet,historical]).includes('href="/notes/reply/"'));
+ assert.ok(renderReadingIndexText(home,[quiet,historical],'/archive/').includes(quiet.url));
+ assert.ok(renderDocument(home,quiet).includes('Archived record'));
+ assert.ok(renderDocument(home,quiet).includes('<p>Original reply.</p>'));
+ const restored={...quiet,metadata:{...quiet.metadata,discovery:'primary'}};
+ assert.ok(readingDocuments([restored,historical]).includes(restored));
+ assert.equal(quiet.text,restored.text);
 });

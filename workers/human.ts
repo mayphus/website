@@ -19,7 +19,7 @@ export default {
   const route=routeFor(url.pathname);
   const target=(routes as Record<string,string>)[route];
   const html=wantsHtml(request.headers.get('accept'));
-  const indexText=['/journal/','/work/'].includes(route) && !html;
+  const indexText=['/journal/','/work/','/archive/'].includes(route) && !html;
   if((request.method==='GET'||request.method==='HEAD') && target && (html || indexText)) {
    const asset=new URL(indexText?route+'index.txt':target,url.origin);
    const response=await env.ASSETS.fetch(new Request(asset,{method:request.method}));
