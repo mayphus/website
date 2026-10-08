@@ -83,7 +83,7 @@ export function renderGuide(home,docs) {
 }
 export function renderHome(home,docs) {
  const guide=home.guide;
- const body=guide?`<section class="hero guide-intro"><h1>${escape(home.introduction)}</h1><p>${escape(guide.overview)}</p><a class="index-jump" href="/journal/">${escape(guide.index_label)} <span aria-hidden="true">→</span></a></section>${renderGuide(home,docs)}<p class="guide-more"><a href="/journal/">${escape(guide.index_label)} <span aria-hidden="true">→</span></a></p>`:`<section class="hero"><h1>${escape(home.introduction)}</h1><p>${escape(home.background)}</p></section><section class="index-section" aria-label="Content index">${contentIndex(docs)}</section>`;
+ const body=guide?`<section class="hero guide-intro"><h1>${escape(home.introduction)}</h1><p>${escape(guide.overview)}</p><a class="index-jump" href="/journal/">${escape(guide.index_label)} <span aria-hidden="true">→</span></a></section>${renderGuide(home,docs)}`:`<section class="hero"><h1>${escape(home.introduction)}</h1><p>${escape(home.background)}</p></section><section class="index-section" aria-label="Content index">${contentIndex(docs)}</section>`;
  return shell({title:home.title,description:home.description,home,root:true,body});
 }
 function readingIndexDetails(home,path) {

@@ -134,7 +134,9 @@ test('editorial guide keeps explicit selections stable while the full index grow
  assert.equal(renderGuide(guideHome,[another,selected]),before);
  const html=renderHome(guideHome,[another,selected]);
  assert.ok(html.includes('A stable overview.'));
- assert.ok(html.includes('href="/journal/"'));
+ assert.equal((html.match(/href="\/journal\/"/g)||[]).length,1);
+ assert.ok(html.includes('class="index-jump"'));
+ assert.ok(html.includes('All work &amp; notes'));
  assert.ok(html.includes('Selected record'));
  assert.ok(!html.includes('Another record'));
  assert.ok(!html.includes('<time'));
