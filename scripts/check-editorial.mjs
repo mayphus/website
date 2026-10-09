@@ -401,3 +401,21 @@ test('design specimens enhance canonical values only in their HTML article',()=>
  assert.equal(JSON.stringify(design),before);
  assert.ok(!renderDocument(home,{...design,url:'https://mayphus.org/example/'}).includes('interface-swatch'));
 });
+
+test('homepage navigation marks only the current hash and responds to history changes', async()=>{
+ const {readFileSync}=await import('node:fs');
+ const {runInNewContext}=await import('node:vm');
+ const links=['#guide-making','#guide-learning'].map(hash=>({hash,attributes:{},setAttribute(k,v){this.attributes[k]=v},removeAttribute(k){delete this.attributes[k]}}));
+ let onHashChange;
+ const location={hash:''};
+ runInNewContext(readFileSync(new URL('../public/guide-navigation.js',import.meta.url),'utf8'),{document:{querySelector:()=>({querySelectorAll:()=>links})},location,window:{addEventListener:(event,fn)=>{assert.equal(event,'hashchange');onHashChange=fn}}});
+ assert.ok(links.every(link=>!link.attributes['aria-current']));
+ location.hash='#guide-learning';onHashChange();
+ assert.equal(links[1].attributes['aria-current'],'location');
+ assert.ok(!links[0].attributes['aria-current']);
+ location.hash='#guide-making';onHashChange();
+ assert.equal(links[0].attributes['aria-current'],'location');
+ assert.ok(!links[1].attributes['aria-current']);
+ location.hash='#contact';onHashChange();
+ assert.ok(links.every(link=>!link.attributes['aria-current']));
+});

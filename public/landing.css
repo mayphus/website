@@ -44,3 +44,10 @@
 .interface-space{display:inline-block;height:8px;background:var(--ink);flex:none}
 .reading[data-record-id="page:/content-first-design/"] table{font-size:16px;line-height:1.5}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+
+/* Homepage section navigation: ordinary links with a quiet location state. */
+.guide-contents{gap:4px;margin-bottom:36px}
+.guide-contents a{display:inline-flex;align-items:center;min-height:44px;max-width:100%;padding:10px 14px;border-radius:var(--radius);font-size:14px;line-height:1.5;color:var(--muted);text-decoration:none;overflow-wrap:anywhere}
+.guide-contents a:hover{background:var(--code-paper);color:var(--ink)}
+.guide-contents a[aria-current="location"]{background:var(--code-paper);color:var(--ink);font-weight:600}
+.guide-contents a:focus-visible{outline:2px solid var(--ink);outline-offset:2px;background:var(--code-paper);color:var(--ink)}

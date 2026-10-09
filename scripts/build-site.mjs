@@ -5,7 +5,7 @@ import {fileURLToPath} from 'node:url';
 import {build} from 'esbuild';
 import {contentSource} from './content-source.mjs';
 import {render} from './render.mjs';
-import {buildEditorial,stylesheetPath,ipaScriptPath} from './editorial.mjs';
+import {buildEditorial,stylesheetPath,ipaScriptPath,guideScriptPath} from './editorial.mjs';
 export async function buildSite({checkContent=false}={}) {
  const {source,commit} = await contentSource();
  execFileSync('npm',['run',checkContent ? 'check' : 'build'],{cwd:source,stdio:'inherit'});
@@ -20,6 +20,7 @@ export async function buildSite({checkContent=false}={}) {
  await cp('public','dist',{recursive:true});
  await cp('public/landing.css','dist'+stylesheetPath);
  await cp('public/ipa-chart.js','dist'+ipaScriptPath);
+ await cp('public/guide-navigation.js','dist'+guideScriptPath);
  await writeFile('dist/index.html',render(await readFile('public/index.html','utf8'),content));
  await mkdir('.cache',{recursive:true});
  // Validate the unchanged AI export before adding browser-only generated views.
