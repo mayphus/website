@@ -104,3 +104,21 @@ const legacySection=sitemapHtml.match(/<details class="sitemap-group" id="sitema
 assert.match(legacySection,/href="\/work\/"/);assert.match(legacySection,/href="\/writing\/"/);
 assert.ok(!legacySection.includes('href="/journal/"'));
 console.log('Legacy sitemap links passed: two evidenced compatibility views, collapsed without canonical duplicates.');
+
+// Human homepage prose and exported root text share the canonical authored guide.
+const exportedHome=docs.find(doc=>doc.id==='page:/');
+const {homepageGuideText}=await import('../.cache/content/scripts/homepage-guide.mjs');
+assert.equal(exportedHome.text,homepageGuideText(home,docs));
+const escapeText=value=>String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
+for(const value of [home.introduction,home.guide.overview,...home.guide.themes.flatMap(theme=>[theme.title,theme.description,...theme.sections.flatMap(section=>[section.title,...section.paragraphs.flat().map(part=>typeof part==='string'?part:part.label)])])]) {
+ assert.ok(html.includes(escapeText(value)),`Human homepage missing guide text: ${value}`);
+ assert.ok(exportedHome.text.includes(value),`Exported homepage missing guide text: ${value}`);
+}
+for(const route of ['/map/','/agents/']) {
+ const page=await readFile('dist'+routes[route],'utf8');
+ assert.doesNotMatch(page,/navigator\.modelContext|registerTool\(|webmcp\.js/);
+ if(route==='/map/')assert.doesNotMatch(page,/<(?:form|input|button|canvas)\b/);
+}
+assert.ok(docs.find(doc=>doc.url==='https://mayphus.org/map/').text.includes('without a request form'));
+assert.ok(docs.find(doc=>doc.url==='https://mayphus.org/agents/').text.includes('do not register browser WebMCP tools'));
+console.log('Homepage export/render parity and documented interface boundaries passed.');
