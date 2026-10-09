@@ -386,3 +386,18 @@ test('only evidenced compatibility views move to Legacy links; substantive archi
  const urls=groups.flatMap(g=>g.entries.map(e=>e.path));assert.equal(new Set(urls).size,urls.length);assert.equal(urls.filter(p=>p==='/journal/').length,1);
  assert.ok(!sitemapGroups([{...writing,text:'New independent writing.'}]).find(g=>g.path==='legacy').entries.some(e=>e.path==='/writing/'));
 });
+
+
+test('design specimens enhance canonical values only in their HTML article',()=>{
+ const text='# Content-first design\n\n| Role | Value |\n|---|---|\n| Background | `#ffffff` |\n| Spacing | `24px` |\n\n`#fff; color:red`';
+ const design={...doc,id:'page:/content-first-design/',title:'Content-first design',url:'https://mayphus.org/content-first-design/',text};
+ const before=JSON.stringify(design);
+ const html=renderDocument(home,design);
+ assert.match(html,/class="interface-swatch" aria-hidden="true" style="background:#ffffff"/);
+ assert.match(html,/class="interface-space" aria-hidden="true" style="width:24px"/);
+ assert.ok(html.includes('<code>#ffffff</code>'));
+ assert.ok(html.includes('<code>24px</code>'));
+ assert.ok(!html.includes('style="background:#fff;'));
+ assert.equal(JSON.stringify(design),before);
+ assert.ok(!renderDocument(home,{...design,url:'https://mayphus.org/example/'}).includes('interface-swatch'));
+});

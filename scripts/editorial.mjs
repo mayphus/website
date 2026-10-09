@@ -13,6 +13,16 @@ const markdown = new MarkdownIt({html:false,linkify:true});
 markdown.validateLink = value => /^(?:https?:|mailto:|#|\/)/i.test(value) || !/^[a-z][a-z0-9+.-]*:/i.test(value);
 markdown.renderer.rules.table_open = () => '<div class="table-scroll" tabindex="0" role="region" aria-label="Scrollable data table"><table>\n';
 markdown.renderer.rules.table_close = () => '</table></div>\n';
+// Enhance labeled source values, without adding duplicate content to exports.
+const defaultInlineCode = markdown.renderer.rules.code_inline;
+markdown.renderer.rules.code_inline = (tokens,index,options,env,self) => {
+ const value=tokens[index].content;
+ const code=defaultInlineCode(tokens,index,options,env,self);
+ if(!env.interfaceSpecimens)return code;
+ if(/^#[0-9a-f]{6}$/i.test(value))return `<span class="interface-value"><span class="interface-swatch" aria-hidden="true" style="background:${value}"></span>${code}</span>`;
+ if(/^(?:4|8|16|24|32|48)px$/.test(value))return `<span class="interface-value"><span class="interface-space" aria-hidden="true" style="width:${value}"></span>${code}</span>`;
+ return code;
+};
 const plain = value => String(value ?? '').replace(/\s+/g,' ').trim();
 const dateLabel = date => date && !Number.isNaN(Date.parse(date)) ? new Intl.DateTimeFormat('en',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(date)) : '';
 const kind = doc => ({article:'Article',project:'Project',note:'Note',page:'Page'}[doc.metadata?.type] || 'Record');
@@ -144,7 +154,7 @@ export function renderDocument(home,doc,docs=[]) {
  const sourceLinks=links.length?`<p class="record-links">${links.map(link=>`<a href="${escape(link.url)}">${escape(link.label || 'Source')}</a>`).join(' · ')}</p>`:'';
  const article=doc.metadata?.type==='article';
  const current=article?'Writing':doc.metadata?.type==='project'?'Work':doc.url.includes('/profile/')?'About':'';
- return shell({title:doc.title,description:doc.summary,url:doc.url,language:doc.metadata?.language || 'en',home,current,article,date:doc.metadata?.date,doc,docs,body:`<article class="reading"${doc.url==='https://mayphus.org/ipa/'?' data-ipa-chart':''} data-record-id="${escape(doc.id)}"><header class="reading-header">${doc.metadata?.discovery==='archive'?'<p class="eyebrow"><a href="/archive/">Archived record</a></p>':''}<h1>${escape(doc.title)}</h1>${summary && summary!==plain(doc.title) && !repeatedSummary?`<p class="standfirst">${escape(plain(doc.summary))}</p>`:''}</header><div class="prose">${markdown.render(text)}${sourceLinks}</div>${images.length?`<section class="record-gallery" aria-label="Images from this record">${images.map(photo=>`<figure><a href="${escape(photo.url)}"><img src="${escape(photo.url)}" alt="${escape(photo.caption)}" loading="lazy" decoding="async"></a><figcaption>${escape(photo.caption)}</figcaption></figure>`).join('')}</section>`:''}</article>`});
+ return shell({title:doc.title,description:doc.summary,url:doc.url,language:doc.metadata?.language || 'en',home,current,article,date:doc.metadata?.date,doc,docs,body:`<article class="reading"${doc.url==='https://mayphus.org/ipa/'?' data-ipa-chart':''} data-record-id="${escape(doc.id)}"><header class="reading-header">${doc.metadata?.discovery==='archive'?'<p class="eyebrow"><a href="/archive/">Archived record</a></p>':''}<h1>${escape(doc.title)}</h1>${summary && summary!==plain(doc.title) && !repeatedSummary?`<p class="standfirst">${escape(plain(doc.summary))}</p>`:''}</header><div class="prose">${markdown.render(text,{interfaceSpecimens:doc.url==='https://mayphus.org/content-first-design/'})}${sourceLinks}</div>${images.length?`<section class="record-gallery" aria-label="Images from this record">${images.map(photo=>`<figure><a href="${escape(photo.url)}"><img src="${escape(photo.url)}" alt="${escape(photo.caption)}" loading="lazy" decoding="async"></a><figcaption>${escape(photo.caption)}</figcaption></figure>`).join('')}</section>`:''}</article>`});
 }
 export async function buildEditorial(home,corpus,catalogs,pageCatalog={pages:[]}) {
  const docs=corpus.documents;
