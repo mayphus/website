@@ -376,3 +376,13 @@ test('human sitemap groups actual paths and excludes private, fragment and expli
  const text=sitemapText(groups);assert.ok(!text.includes('Secret'));assert.ok(!text.includes('Hidden'));assert.ok(!text.includes('#cap'));assert.ok(!text.includes('?book='));assert.ok(text.includes('/typing/methods'));
  assert.ok(renderHome(home,records).includes('href="/sitemap/">Site map</a>'));
 });
+
+test('only evidenced compatibility views move to Legacy links; substantive archives remain canonical',()=>{
+ const writing={title:'Writing',url:'https://mayphus.org/writing/',metadata:{type:'page'},text:'Writing\n\nThis older route remains available for existing links. Browse [all work and notes](https://mayphus.org/journal/) in the current reading index.'};
+ const archive={title:'Archived work',url:'https://mayphus.org/old-project/',metadata:{type:'page',status:'archived'},text:'Its own substantive record.'};
+ const groups=sitemapGroups([writing,archive]);const legacy=groups.find(g=>g.path==='legacy');
+ assert.deepEqual(legacy.entries.map(e=>[e.path,e.compatibilityTarget]),[['/work/','/journal/'],['/writing/','/journal/']]);
+ assert.ok(groups.find(g=>g.path==='/').entries.some(e=>e.path==='/old-project/'));
+ const urls=groups.flatMap(g=>g.entries.map(e=>e.path));assert.equal(new Set(urls).size,urls.length);assert.equal(urls.filter(p=>p==='/journal/').length,1);
+ assert.ok(!sitemapGroups([{...writing,text:'New independent writing.'}]).find(g=>g.path==='legacy').entries.some(e=>e.path==='/writing/'));
+});

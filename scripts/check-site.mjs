@@ -98,3 +98,9 @@ for(const match of sitemapHtml.match(/<main[\s\S]*?<\/main>/)[0].matchAll(/href=
 assert.ok(!sitemapHtml.includes('href="/todo/"'));
 assert.ok(!sitemapHtml.includes('?book='));
 console.log('Human sitemap passed: known routes, collapsed Books, public-only links and text representation.');
+assert.match(sitemapHtml,/<details class="sitemap-group" id="sitemap-legacy"><summary>Legacy links<\/summary>/);
+assert.ok(!/<details[^>]*\bopen(?:\s|>|=)/.test(sitemapHtml));
+const legacySection=sitemapHtml.match(/<details class="sitemap-group" id="sitemap-legacy">[\s\S]*?<\/details>/)[0];
+assert.match(legacySection,/href="\/work\/"/);assert.match(legacySection,/href="\/writing\/"/);
+assert.ok(!legacySection.includes('href="/journal/"'));
+console.log('Legacy sitemap links passed: two evidenced compatibility views, collapsed without canonical duplicates.');
