@@ -365,3 +365,14 @@ test('homepage figures keep intrinsic dimensions, lazy loading, context links an
  assert.ok(html.includes('name="twitter:card"'));
  assert.throws(()=>renderHome(h,[]),/Missing public visual record/);
 });
+
+import {sitemapGroups,sitemapText} from './human-sitemap.mjs';
+test('human sitemap groups actual paths and excludes private, fragment and explicitly excluded entries',()=>{
+ const records=[['/','Home'],['/profile/','Profile'],['/profile/zh/','中文'],['/notes/a/','A'],['/books/','Books'],['/hidden/','Hidden'],['/private/secret/','Secret']].map(([path,title])=>({title,url:'https://mayphus.org'+path,metadata:{type:'page'}}));
+ records.push({title:'Capability',url:'https://mayphus.org/agents/#cap',metadata:{type:'capability'}});
+ const groups=sitemapGroups(records,[{route:'/hidden/',sitemap:false}]);
+ assert.deepEqual(groups.find(g=>g.path==='/profile/').entries.map(e=>e.path),['/profile/','/profile/zh/']);
+ assert.equal(groups.find(g=>g.path==='/books/').entries.length,1);
+ const text=sitemapText(groups);assert.ok(!text.includes('Secret'));assert.ok(!text.includes('Hidden'));assert.ok(!text.includes('#cap'));assert.ok(!text.includes('?book='));assert.ok(text.includes('/typing/methods'));
+ assert.ok(renderHome(home,records).includes('href="/sitemap/">Site map</a>'));
+});

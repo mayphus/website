@@ -38,7 +38,7 @@ console.log('Deployment bundle passed: homepage, health, search, MCP and privacy
 
 const routes=JSON.parse(await readFile('.cache/human-routes.json','utf8'));
 const docs=JSON.parse(await readFile('dist/documents.json','utf8')).documents;
-for(const route of ['/profile/','/four-province-expressway-atlas/','/about-this-content/','/work/','/journal/','/archive/']) {
+for(const route of ['/profile/','/four-province-expressway-atlas/','/about-this-content/','/work/','/journal/','/archive/','/sitemap/']) {
  const expected=await readFile('dist'+routes[route],'utf8');
  for(const path of [route,route+'index.html']) {
   const response=await worker.fetch(new Request('https://mayphus.org'+path,{headers:{Accept:'text/html'}}),env);
@@ -47,7 +47,7 @@ for(const route of ['/profile/','/four-province-expressway-atlas/','/about-this-
  const head=await worker.fetch(new Request('https://mayphus.org'+route,{method:'HEAD',headers:{Accept:'text/html'}}),env);
  assert.equal(head.status,200);assert.equal(await head.text(),'');
 }
-for(const route of ['/profile/','/four-province-expressway-atlas/','/about-this-content/','/journal/','/work/','/archive/']) {
+for(const route of ['/profile/','/four-province-expressway-atlas/','/about-this-content/','/journal/','/work/','/archive/','/sitemap/']) {
  const text=await readFile('dist'+route+'index.txt','utf8');
  for(const accept of ['', '*/*','text/plain','text/html;q=0','text/plain;q=1,text/html;q=.5']) {
   const response=await worker.fetch(new Request('https://mayphus.org'+route,{headers:{Accept:accept}}),env);
@@ -87,3 +87,14 @@ const explanationHtml=await readFile('dist'+routes['/about-this-content/'],'utf8
 assert.ok(!explanationHtml.includes('mailto:'));
 assert.ok(!explanationHtml.includes(home.email));
 console.log('Disclosure passed: canonical provenance, one HTML link per page, no per-record machine footers or new contact details.');
+
+const sitemapHtml=await readFile('dist'+routes['/sitemap/'],'utf8');
+assert.match(sitemapHtml,/<details class="sitemap-group" id="sitemap-books"><summary>Books/);
+assert.ok(!sitemapHtml.includes('<details class="sitemap-group" open'));
+const appPages=new Set(['/typing/methods','/typing/guide','/typing/customize']);
+for(const match of sitemapHtml.match(/<main[\s\S]*?<\/main>/)[0].matchAll(/href="(\/[^"#]*)"/g)){
+ const path=match[1];assert.ok(path==='/'||path==='/rss.xml'||routes[path]||appPages.has(path),'Unknown sitemap link '+path);
+}
+assert.ok(!sitemapHtml.includes('href="/todo/"'));
+assert.ok(!sitemapHtml.includes('?book='));
+console.log('Human sitemap passed: known routes, collapsed Books, public-only links and text representation.');

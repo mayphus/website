@@ -25,7 +25,7 @@ export default {
   const route=routeFor(url.pathname);
   const target=(routes as Record<string,string>)[route];
   const html=wantsHtml(request.headers.get('accept')) || wantsSocialHtml(request.headers.get('accept'),request.headers.get('user-agent'));
-  const indexText=['/journal/','/work/','/archive/'].includes(route) && !html;
+  const indexText=['/journal/','/work/','/archive/','/sitemap/'].includes(route) && !html;
   if((request.method==='GET'||request.method==='HEAD') && target && (html || indexText)) {
    const asset=new URL(indexText?route+'index.txt':target,url.origin);
    const response=await env.ASSETS.fetch(new Request(asset,{method:request.method}));

@@ -1,3 +1,4 @@
+import {sitemapGroups,sitemapText} from './human-sitemap.mjs';
 import {socialMetadata} from './social-metadata.mjs';
 import {indexTopic,topicSvg} from './index-topics.mjs';
 import {createHash} from 'node:crypto';
@@ -52,7 +53,7 @@ function shell({title,description,url='https://mayphus.org/',language='en',home,
  const email=home.email;
  if(!/^[^\s<>"'@]+@[^\s<>"'@]+\.[^\s<>"'@]+$/.test(email))throw Error('Invalid canonical contact email');
 
- return `<!doctype html><html lang="${escape(language)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${root?'<meta name="p:domain_verify" content="69f7fa72d39ff4fec26fec1895430031"/>':''}<title>${escape(title)}${title===home.title?'':` — ${escape(home.title)}`}</title>${socialMetadata({title,description,url,language,home,article,date,doc,docs})}<link rel="stylesheet" href="${stylesheetPath}"><link rel="alternate" type="application/rss+xml" href="/rss.xml" title="Mayphus updates"><link rel="alternate" type="application/json" href="/agent-index.json" title="AI-readable content index"></head><body><a class="skip-link" href="#main">Skip to content</a><header class="site-header"><a class="brand" href="/" aria-label="Mayphus home">${escape(home.title)}</a></header><main id="main">${body}</main><footer class="site-footer" id="contact">${disclosurePage?'':`<a class="email-link" href="mailto:${escape(email)}">${escape(email)}</a>`}${disclosurePage?'':'<a class="work-link" href="/work-with-me/">Work with me</a>'}<a class="rss-link" href="/rss.xml" rel="alternate" type="application/rss+xml">RSS</a><a class="content-disclosure" href="/about-this-content/" aria-label="About this content: Human work. AI-assisted words.">Human work. AI-assisted words.</a></footer>${url==='https://mayphus.org/ipa/'?`<script src="${ipaScriptPath}" defer></script>`:''}${root||url==='https://mayphus.org/journal/'?'<script src="/fragments.js" defer></script>':''}</body></html>`;
+ return `<!doctype html><html lang="${escape(language)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${root?'<meta name="p:domain_verify" content="69f7fa72d39ff4fec26fec1895430031"/>':''}<title>${escape(title)}${title===home.title?'':` — ${escape(home.title)}`}</title>${socialMetadata({title,description,url,language,home,article,date,doc,docs})}<link rel="stylesheet" href="${stylesheetPath}"><link rel="alternate" type="application/rss+xml" href="/rss.xml" title="Mayphus updates"><link rel="alternate" type="application/json" href="/agent-index.json" title="AI-readable content index"></head><body><a class="skip-link" href="#main">Skip to content</a><header class="site-header"><a class="brand" href="/" aria-label="Mayphus home">${escape(home.title)}</a></header><main id="main">${body}</main><footer class="site-footer" id="contact">${disclosurePage?'':`<a class="email-link" href="mailto:${escape(email)}">${escape(email)}</a>`}${disclosurePage?'':'<a class="work-link" href="/work-with-me/">Work with me</a>'}<a class="rss-link" href="/rss.xml" rel="alternate" type="application/rss+xml">RSS</a><a class="sitemap-link" href="/sitemap/">Site map</a>${url==='https://mayphus.org/sitemap/'?'<span class="content-disclosure">Human work. AI-assisted words.</span>':'<a class="content-disclosure" href="/about-this-content/" aria-label="About this content: Human work. AI-assisted words.">Human work. AI-assisted words.</a>'}</footer>${url==='https://mayphus.org/ipa/'?`<script src="${ipaScriptPath}" defer></script>`:''}${root||url==='https://mayphus.org/journal/'?'<script src="/fragments.js" defer></script>':''}</body></html>`;
 }
 export function readingDocuments(docs,{archive=false}={}) {
  if(archive)return dated(docs.filter(doc=>doc.metadata?.discovery==='archive' && doc.metadata?.type!=='capability'));
@@ -145,7 +146,7 @@ export function renderDocument(home,doc,docs=[]) {
  const current=article?'Writing':doc.metadata?.type==='project'?'Work':doc.url.includes('/profile/')?'About':'';
  return shell({title:doc.title,description:doc.summary,url:doc.url,language:doc.metadata?.language || 'en',home,current,article,date:doc.metadata?.date,doc,docs,body:`<article class="reading"${doc.url==='https://mayphus.org/ipa/'?' data-ipa-chart':''} data-record-id="${escape(doc.id)}"><header class="reading-header">${doc.metadata?.discovery==='archive'?'<p class="eyebrow"><a href="/archive/">Archived record</a></p>':''}<h1>${escape(doc.title)}</h1>${summary && summary!==plain(doc.title) && !repeatedSummary?`<p class="standfirst">${escape(plain(doc.summary))}</p>`:''}</header><div class="prose">${markdown.render(text)}${sourceLinks}</div>${images.length?`<section class="record-gallery" aria-label="Images from this record">${images.map(photo=>`<figure><a href="${escape(photo.url)}"><img src="${escape(photo.url)}" alt="${escape(photo.caption)}" loading="lazy" decoding="async"></a><figcaption>${escape(photo.caption)}</figcaption></figure>`).join('')}</section>`:''}</article>`});
 }
-export async function buildEditorial(home,corpus,catalogs) {
+export async function buildEditorial(home,corpus,catalogs,pageCatalog={pages:[]}) {
  const docs=corpus.documents;
  const projectUrls=new Set(catalogs.projects.map(p=>p.url || 'https://mayphus.org'+p.route));
  const projects=docs.filter(d=>projectUrls.has(d.url));
@@ -167,6 +168,13 @@ export async function buildEditorial(home,corpus,catalogs) {
  await page('/work/',renderFullIndex(home,docs,'/work/'));
  await page('/journal/',renderFullIndex(home,docs));
  await page('/archive/',renderFullIndex(home,docs,'/archive/'));
+ const groups=sitemapGroups(docs,pageCatalog.pages);
+ const sitemapRows=entries=>`<ul class="sitemap-entries">${entries.map(e=>`<li><a href="${escape(e.path)}"><span>${escape(e.title)}</span><small>${escape(e.path)}</small></a>${e.status?`<small class="sitemap-status">${escape(e.status)}</small>`:''}</li>`).join('')}</ul>`;
+ const groupId=g=>'sitemap-'+(g.path==='/'?'root':g.path.split('/').filter(Boolean).join('-'));
+ const sitemapBody=`<section class="reading sitemap"><header class="reading-header"><h1>Site map</h1><p>Public pages, grouped by URL path. Books and input methods have their own live catalogues.</p><nav class="sitemap-jumps" aria-label="Site map sections">${groups.map(g=>`<a href="#${escape(groupId(g))}">${g.path==='/'?'Top-level pages':escape(g.path)}</a>`).join('')}</nav></header>${groups.map(g=>g.path==='/books/'?`<details class="sitemap-group" id="${escape(groupId(g))}"><summary>Books <small>/books/</small></summary><p>Open the catalogue to browse individual books and chapters.</p>${sitemapRows(g.entries)}</details>`:`<section class="sitemap-group" id="${escape(groupId(g))}"><h2>${g.path==='/'?'Top-level pages':escape(g.path)}</h2>${sitemapRows(g.entries)}</section>`).join('')}</section>`;
+ await page('/sitemap/',shell({title:'Site map',description:'Public pages grouped by URL path.',url:'https://mayphus.org/sitemap/',home,body:sitemapBody}));
+ await mkdir('dist/sitemap',{recursive:true});await writeFile('dist/sitemap/index.txt',sitemapText(groups));
+
  for(const route of ['/journal/','/work/','/archive/']) {
   await mkdir('dist'+route,{recursive:true});
   await writeFile('dist'+route+'index.txt',renderReadingIndexText(home,docs,route));

@@ -24,7 +24,7 @@ export async function buildSite({checkContent=false}={}) {
  await mkdir('.cache',{recursive:true});
  // Validate the unchanged AI export before adding browser-only generated views.
  execFileSync(process.execPath,['scripts/check-agent-site.mjs'],{cwd:source,stdio:'inherit',env:{...process.env,MAYPHUS_SITE_DIST:resolve('dist')}});
- await buildEditorial(content,JSON.parse(await readFile('dist/documents.json','utf8')),JSON.parse(await readFile('dist/projects.json','utf8')));
+ await buildEditorial(content,JSON.parse(await readFile('dist/documents.json','utf8')),JSON.parse(await readFile('dist/projects.json','utf8')),JSON.parse(await readFile('dist/pages.json','utf8')));
  await build({alias:{'mayphus-content-worker':resolve(source,'workers/worker.ts'),'mayphus-human-routes':resolve('.cache/human-routes.json')},entryPoints:[resolve('workers/human.ts')],outfile:'.cache/worker.mjs',bundle:true,format:'esm',platform:'neutral',target:'es2022'});
  await writeFile('.cache/build.json',JSON.stringify({contentCommit:commit})+'\n');
  console.log(`Website built with content ${commit}.`);

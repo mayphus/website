@@ -25,3 +25,8 @@
 
 /* Small evidence figures punctuate the narrative without adding a gallery or runtime. */
 .guide-visual{max-width:480px;margin:0 0 30px}.guide-visual>a{display:block}.guide-visual img{display:block;width:100%;height:auto}.guide-visual figcaption{font-size:.8rem;line-height:1.55;color:var(--muted);margin:9px 0 0;max-width:440px}.guide-visual figcaption a{text-decoration:underline;text-decoration-color:var(--link-rule);text-underline-offset:3px}@media(max-width:600px){.guide-visual{max-width:360px;margin-bottom:26px}}
+
+/* Human sitemap uses the shared typography and automatic theme. */
+.sitemap{max-width:900px}.sitemap .reading-header p{color:var(--muted);line-height:1.6}.sitemap-group{margin:32px 0}.sitemap-group h2,.sitemap-group summary{font-size:1.1rem;font-weight:550;line-height:1.5}.sitemap-group summary{cursor:pointer}.sitemap-group summary small{margin-left:.6em;color:var(--muted);font-weight:400}.sitemap-group>p{color:var(--muted);line-height:1.6}.sitemap-entries{list-style:none;margin:12px 0;padding:0}.sitemap-entries li{margin:0;padding:7px 0;line-height:1.5}.sitemap-entries a{display:inline-flex;flex-direction:column;max-width:100%;overflow-wrap:anywhere}.sitemap-entries small,.sitemap-status{font-size:.78rem;color:var(--muted)}.sitemap-status{margin-left:1em}.sitemap-group summary:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+
+.sitemap-jumps{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:.85rem;margin:20px 0}.sitemap-jumps a{text-decoration:underline;text-underline-offset:3px}.sitemap-group{scroll-margin-top:24px}
